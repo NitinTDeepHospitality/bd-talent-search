@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { THEMES, VOICE_LEVELS, DENSITIES } from '@/lib/theme';
-import { CANDIDATES, JOBS, type Candidate } from '@/lib/data';
+import { JOBS, type Candidate } from '@/lib/data';
 import { IOSDevice } from '@/components/IOSDevice';
 import { Wordmark } from '@/components/Shared';
 import { TweaksPanel, type Tweaks } from '@/components/TweaksPanel';
@@ -52,11 +52,12 @@ const CAPTIONS: Record<string, string> = {
   chat: '08 — Ask Belinda',
 };
 
-export default function App() {
+export default function App({ initialCandidates }: { initialCandidates: Candidate[] }) {
+  const candidates = initialCandidates;
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [route, setRoute] = useState<Route>({ name: 'home' });
-  const [lastCandidate, setLastCandidate] = useState<Candidate>(CANDIDATES[0]);
+  const [lastCandidate, setLastCandidate] = useState<Candidate>(candidates[0]);
 
   const theme = THEMES[tweaks.theme] || THEMES.editorial;
   const voice = VOICE_LEVELS[tweaks.voice] || VOICE_LEVELS.prominent;
@@ -96,7 +97,7 @@ export default function App() {
         return (
           <VoiceResult
             theme={theme}
-            candidates={CANDIDATES}
+            candidates={candidates}
             onClose={goHome}
             onPickCandidate={openDetail}
             onSwipeAll={() => setRoute({ name: 'swipe' })}
@@ -108,7 +109,7 @@ export default function App() {
         return (
           <OpportunityScreen
             theme={theme}
-            candidates={CANDIDATES}
+            candidates={candidates}
             onClose={goHome}
             onOpenCandidate={openDetail}
           />
@@ -152,7 +153,7 @@ export default function App() {
             voice={voice}
             density={density}
             role={tweaks.role}
-            candidates={CANDIDATES}
+            candidates={candidates}
             onReveal={openDetail}
             onMatch={openMatch}
             onBelindaAsk={openChat}
