@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import type { Theme } from '@/lib/theme';
 import { type Candidate, VOICE_QUERIES } from '@/lib/data';
 import { ListeningDots, SignalPill } from '@/components/Shared';
@@ -92,6 +91,9 @@ export function VoiceResult({
   theme,
   candidates,
   userTranscript,
+  matchedIds,
+  reasoning,
+  userTags,
   onClose,
   onPickCandidate,
   onSwipeAll,
@@ -101,30 +103,41 @@ export function VoiceResult({
   // null = transcription still in flight; string = ready ('' = transcribe failed).
   // undefined = no live query (fall back to the mock demo query).
   userTranscript?: string | null;
+  // null = parse-query in flight; array = results ready ([] = parse-query failed).
+  // undefined = no live query (use mock matchIds + reasoning + tags).
+  matchedIds?: string[] | null;
+  reasoning?: string | null;
+  userTags?: string[] | null;
   onClose: () => void;
   onPickCandidate: (c: Candidate) => void;
   onSwipeAll: () => void;
 }) {
   const q = VOICE_QUERIES[0];
-  const matched = q.matchIds
-    .map((id) => candidates.find((c) => c.id === id))
-    .filter((c): c is Candidate => Boolean(c));
-  const [phase, setPhase] = useState<'listening' | 'thinking' | 'done'>('listening');
 
-  // Only advance phases once we have a transcript. When the prop is null we
-  // sit on 'listening' (the transcribing indicator).
-  useEffect(() => {
-    if (userTranscript === null) return;
-    const t1 = setTimeout(() => setPhase('thinking'), 600);
-    const t2 = setTimeout(() => setPhase('done'), 1400);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [userTranscript]);
+  // Phase is derived from props — no internal timers. Live mode:
+  //   transcript pending → 'listening'
+  //   transcript ready, parse pending → 'thinking'
+  //   parse ready → 'done'
+  // Mock mode (undefined props) → 'done' immediately so the demo still works.
+  let phase: 'listening' | 'thinking' | 'done';
+  if (userTranscript === undefined && matchedIds === undefined) {
+    phase = 'done';
+  } else if (userTranscript === null) {
+    phase = 'listening';
+  } else if (matchedIds == null) {
+    phase = 'thinking';
+  } else {
+    phase = 'done';
+  }
 
   const shownSpoken = userTranscript || q.spoken;
   const transcribeFailed = userTranscript === '';
+  const shownTags = userTags && userTags.length > 0 ? userTags : q.tags;
+  const shownReasoning = reasoning || q.reasoning;
+  const idsToShow = matchedIds && matchedIds.length > 0 ? matchedIds : q.matchIds;
+  const matched = idsToShow
+    .map((id) => candidates.find((c) => c.id === id))
+    .filter((c): c is Candidate => Boolean(c));
 
   return (
     <div
@@ -199,7 +212,7 @@ export function VoiceResult({
             : `“${shownSpoken}”`}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 14 }}>
-          {q.tags.map((t) => (
+          {shownTags.map((t) => (
             <SignalPill key={t} theme={theme}>
               {t}
             </SignalPill>
@@ -247,7 +260,7 @@ export function VoiceResult({
                 fontStyle: 'italic',
               }}
             >
-              {q.reasoning}
+              {shownReasoning}
             </div>
           )}
         </div>

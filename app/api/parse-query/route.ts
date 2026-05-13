@@ -1,0 +1,136 @@
+// POST /api/parse-query — turn a spoken transcript into structured filters
+// and a ranked candidate list. Returns the IDs only; the client already
+// has the full candidate objects via initialCandidates.
+
+import { NextResponse } from 'next/server';
+import type { Anthropic } from '@anthropic-ai/sdk';
+import { anthropic, CLAUDE_MODEL } from '@/lib/anthropic';
+import { supabaseServer } from '@/lib/supabase/server';
+
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
+const SYSTEM_PROMPT = `You are Belinda's BD assistant. Belinda is a hospitality talent broker — she places GMs, DOSMs, F&B directors at luxury and lifestyle hotels.
+
+When she asks something, you:
+1. Parse her query into structured filters (expertise area, tier, location, languages, anything else relevant)
+2. Pick up to 5 candidates from her network that fit best, ranked best first
+3. Explain your reasoning in one short sentence in her register — editorial, terse, knowing. Never marketing-y, never overlong.
+
+Examples of her register:
+- "Three names jump out — all have run lifestyle properties and speak French."
+- "Two of these are mobile in EMEA. The third would need persuading."
+- "Sophie is the obvious pick. Alessandra runs hotter on chemistry."
+
+You receive a JSON array of her candidates with key facts. Use the candidate \`id\` (UUID) in \`matchedIds\`. The \`tags\` field is for pill chips on the UI — short, 1–2 words each, max 6.`;
+
+const RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    filters: {
+      type: 'object',
+      properties: {
+        expertise: { type: 'array', items: { type: 'string' } },
+        tier: { type: 'string' },
+        location: { type: 'string' },
+        languages: { type: 'array', items: { type: 'string' } },
+        notes: { type: 'string' },
+      },
+      additionalProperties: false,
+    },
+    matchedIds: { type: 'array', items: { type: 'string' }, maxItems: 5 },
+    reasoning: { type: 'string' },
+    tags: { type: 'array', items: { type: 'string' }, maxItems: 6 },
+  },
+  required: ['filters', 'matchedIds', 'reasoning', 'tags'],
+  additionalProperties: false,
+} as const;
+
+export type ParseQueryResponse = {
+  filters: {
+    expertise?: string[];
+    tier?: string;
+    location?: string;
+    languages?: string[];
+    notes?: string;
+  };
+  matchedIds: string[];
+  reasoning: string;
+  tags: string[];
+};
+
+export async function POST(request: Request) {
+  const { transcript } = (await request.json()) as { transcript?: string };
+  if (!transcript || transcript.trim().length === 0) {
+    return NextResponse.json(
+      { error: 'transcript required' },
+      { status: 400 },
+    );
+  }
+
+  const sb = supabaseServer();
+  const { data: candidates, error: dbErr } = await sb
+    .from('candidates')
+    .select(
+      'id, name, current_title, current_hotel, location, languages, belinda_tier, belinda_rating, quote, availability',
+    )
+    .limit(50);
+
+  if (dbErr) {
+    return NextResponse.json(
+      { error: 'db_error', detail: dbErr.message },
+      { status: 502 },
+    );
+  }
+  if (!candidates || candidates.length === 0) {
+    return NextResponse.json(
+      { error: 'no_candidates' },
+      { status: 503 },
+    );
+  }
+
+  const userPrompt =
+    `Belinda said: "${transcript}"\n\n` +
+    `Her candidates:\n${JSON.stringify(candidates, null, 2)}`;
+
+  const response = await anthropic().messages.create({
+    model: CLAUDE_MODEL,
+    max_tokens: 1500,
+    thinking: { type: 'adaptive' },
+    output_config: {
+      effort: 'low',
+      format: { type: 'json_schema', schema: RESPONSE_SCHEMA },
+    } as Anthropic.Messages.MessageCreateParams['output_config'],
+    system: [
+      {
+        type: 'text',
+        text: SYSTEM_PROMPT,
+        cache_control: { type: 'ephemeral' },
+      },
+    ],
+    messages: [{ role: 'user', content: userPrompt }],
+  });
+
+  // The structured-output text comes back in a text block.
+  const textBlock = response.content.find(
+    (b): b is Anthropic.TextBlock => b.type === 'text',
+  );
+  if (!textBlock) {
+    return NextResponse.json(
+      { error: 'no_text_block', stop_reason: response.stop_reason },
+      { status: 502 },
+    );
+  }
+
+  let parsed: ParseQueryResponse;
+  try {
+    parsed = JSON.parse(textBlock.text) as ParseQueryResponse;
+  } catch (e) {
+    return NextResponse.json(
+      { error: 'parse_failed', raw: textBlock.text.slice(0, 500) },
+      { status: 502 },
+    );
+  }
+
+  return NextResponse.json(parsed);
+}

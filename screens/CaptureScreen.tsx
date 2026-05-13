@@ -5,18 +5,21 @@ import type { Theme } from '@/lib/theme';
 import { QUICK_CAPTURE_SAMPLE } from '@/lib/data';
 import { Divider, ListeningDots } from '@/components/Shared';
 import { startRecording, transcribe, type RecorderController } from '@/lib/recorder';
+import { extractCapture, type ExtractedRow } from '@/lib/api';
 
-type Phase = 'idle' | 'recording' | 'transcribing' | 'structured';
+type Phase = 'idle' | 'recording' | 'transcribing' | 'extracting' | 'structured';
 
 export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () => void }) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [transcript, setTranscript] = useState('');
+  const [extracted, setExtracted] = useState<ExtractedRow[] | null>(null);
   const recorderRef = useRef<RecorderController | null>(null);
-  // Extraction is still stubbed against the sample until Step 5 wires Claude.
+  // Demo fallback so the structured panel never renders empty in dev.
   const sample = QUICK_CAPTURE_SAMPLE;
 
   const start = async () => {
     setTranscript('');
+    setExtracted(null);
     try {
       recorderRef.current = await startRecording();
       setPhase('recording');
@@ -30,14 +33,28 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
     if (!ctrl) return;
     recorderRef.current = null;
     setPhase('transcribing');
+
+    let text = '';
     try {
       const blob = await ctrl.stop();
-      const text = await transcribe(blob);
+      text = await transcribe(blob);
       setTranscript(text);
-      setPhase('structured');
     } catch (e) {
       console.error('[BD] transcribe failed:', e);
       setTranscript('— transcription failed, please try again —');
+      setPhase('structured');
+      setExtracted([]);
+      return;
+    }
+
+    setPhase('extracting');
+    try {
+      const rows = await extractCapture(text);
+      setExtracted(rows);
+    } catch (e) {
+      console.error('[BD] extract-capture failed:', e);
+      setExtracted([]);
+    } finally {
       setPhase('structured');
     }
   };
@@ -149,7 +166,7 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
           </div>
         )}
 
-        {(phase === 'recording' || phase === 'transcribing') && (
+        {(phase === 'recording' || phase === 'transcribing' || phase === 'extracting') && (
           <div>
             <div
               style={{
@@ -201,6 +218,11 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
                 <ListeningDots theme={theme} label="Transcribing" />
               </div>
             )}
+            {phase === 'extracting' && (
+              <div style={{ marginTop: 8 }}>
+                <ListeningDots theme={theme} label="Extracting briefs, contacts, tags" />
+              </div>
+            )}
           </div>
         )}
 
@@ -241,7 +263,13 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
 
             <Divider theme={theme} label="Structured" />
             <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {sample.extracted.map((e, i) => (
+              {((extracted && extracted.length > 0
+                ? extracted
+                : sample.extracted) as Array<{
+                type: string;
+                label: string;
+                detail?: string;
+              }>).map((e, i) => (
                 <div
                   key={i}
                   style={{
@@ -276,7 +304,20 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
                       lineHeight: 1.4,
                     }}
                   >
-                    {e.label}
+                    <div>{e.label}</div>
+                    {'detail' in e && e.detail && (
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: theme.muted,
+                          marginTop: 4,
+                          fontFamily: theme.serif,
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        {e.detail}
+                      </div>
+                    )}
                   </div>
                   <div style={{ color: theme.gold, fontSize: 14 }}>+</div>
                 </div>

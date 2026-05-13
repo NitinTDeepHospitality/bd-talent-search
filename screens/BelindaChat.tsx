@@ -9,6 +9,7 @@ import {
   BELINDA_RESPONSES,
   RESOURCES,
 } from '@/lib/data';
+import { streamChat, type ChatMessageForApi } from '@/lib/api';
 
 function Bubble({ theme, role, text }: { theme: Theme; role: 'me' | 'belinda'; text: string }) {
   const isMe = role === 'me';
@@ -99,27 +100,62 @@ export function BelindaChat({
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, typing]);
 
-  const send = (text?: string) => {
+  const send = async (text?: string) => {
     const t = text || draft;
     if (!t.trim()) return;
-    setMessages((m) => [...m, { role: 'me', text: t }]);
     setDraft('');
+
+    // Append the user turn immediately. Capture the resulting history for the
+    // API call so we don't race against React's batched state updates.
+    const nextHistory: ChatMessage[] = [...messages, { role: 'me', text: t }];
+    setMessages(nextHistory);
     setTyping(true);
-    const lowered = t.toLowerCase();
-    let key = 'default';
-    for (const k of Object.keys(BELINDA_RESPONSES)) {
-      if (lowered.includes(k)) {
-        key = k;
-        break;
+
+    const apiMessages: ChatMessageForApi[] = nextHistory.map((m) => ({
+      role: m.role === 'me' ? 'user' : 'assistant',
+      content: m.text,
+    }));
+
+    let assistantStarted = false;
+    let accumulated = '';
+
+    try {
+      // Candidate.id is typed as number on the mock but is a UUID string in
+      // prod; the API only cares about the string form either way.
+      const candidateIdStr = seedCandidate ? String(seedCandidate.id) : undefined;
+      for await (const chunk of streamChat(apiMessages, candidateIdStr)) {
+        if (!assistantStarted) {
+          assistantStarted = true;
+          setTyping(false);
+          setMessages((m) => [...m, { role: 'belinda', text: '' }]);
+        }
+        accumulated += chunk;
+        setMessages((m) => {
+          const updated = [...m];
+          updated[updated.length - 1] = { role: 'belinda', text: accumulated };
+          return updated;
+        });
       }
+    } catch (e) {
+      console.error('[BD] chat stream failed:', e);
+      if (!assistantStarted) {
+        setMessages((m) => [
+          ...m,
+          { role: 'belinda', text: '— couldn’t reach the assistant. try again. —' },
+        ]);
+      } else {
+        setMessages((m) => {
+          const updated = [...m];
+          updated[updated.length - 1] = {
+            role: 'belinda',
+            text: accumulated + '\n\n— stream cut off, sorry. —',
+          };
+          return updated;
+        });
+      }
+    } finally {
+      setTyping(false);
     }
-    const lines = BELINDA_RESPONSES[key];
-    lines.forEach((line, i) => {
-      setTimeout(() => {
-        setMessages((m) => [...m, { role: 'belinda', text: line }]);
-        if (i === lines.length - 1) setTyping(false);
-      }, 700 + i * 900);
-    });
   };
 
   const suggestions = [

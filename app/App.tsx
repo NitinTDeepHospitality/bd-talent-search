@@ -10,6 +10,7 @@ import { HomeScreen, type VoiceQuery } from '@/screens/HomeScreen';
 import { VoiceResult } from '@/screens/VoiceResult';
 import { CaptureScreen } from '@/screens/CaptureScreen';
 import { transcribe } from '@/lib/recorder';
+import { parseQuery } from '@/lib/api';
 import { OpportunityScreen } from '@/screens/OpportunityScreen';
 import { SwipeScreen } from '@/screens/SwipeScreen';
 import { DetailScreen } from '@/screens/DetailScreen';
@@ -59,8 +60,16 @@ export default function App({ initialCandidates }: { initialCandidates: Candidat
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [route, setRoute] = useState<Route>({ name: 'home' });
   const [lastCandidate, setLastCandidate] = useState<Candidate>(candidates[0]);
-  // null = still transcribing; string = transcript ready (empty string = error)
-  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  // Voice flow has two async phases — transcription and parse-query.
+  // null fields mean "still working"; a value (including '' for transcript)
+  // means that phase finished. matchedIds: null = parse-query in flight,
+  // [] = parse-query failed or returned nothing.
+  const [voiceResult, setVoiceResult] = useState<{
+    transcript: string | null;
+    matchedIds: string[] | null;
+    reasoning: string | null;
+    tags: string[] | null;
+  }>({ transcript: null, matchedIds: null, reasoning: null, tags: null });
 
   const theme = THEMES[tweaks.theme] || THEMES.editorial;
   const voice = VOICE_LEVELS[tweaks.voice] || VOICE_LEVELS.prominent;
@@ -74,17 +83,56 @@ export default function App({ initialCandidates }: { initialCandidates: Candidat
 
   const handleVoice = async (q: VoiceQuery) => {
     setRoute({ name: 'voice' });
+    setVoiceResult({
+      transcript: null,
+      matchedIds: null,
+      reasoning: null,
+      tags: null,
+    });
+
+    let transcript: string;
     if ('text' in q) {
-      setVoiceTranscript(q.text);
-      return;
+      transcript = q.text;
+    } else {
+      try {
+        transcript = await transcribe(q.audio);
+      } catch (e) {
+        console.error('[BD] transcribe failed:', e);
+        setVoiceResult({
+          transcript: '',
+          matchedIds: [],
+          reasoning: '',
+          tags: [],
+        });
+        return;
+      }
     }
-    setVoiceTranscript(null);
+
+    // Transcript ready — show it while we wait on parse-query.
+    setVoiceResult({
+      transcript,
+      matchedIds: null,
+      reasoning: null,
+      tags: null,
+    });
+
     try {
-      const text = await transcribe(q.audio);
-      setVoiceTranscript(text);
+      const parsed = await parseQuery(transcript);
+      setVoiceResult({
+        transcript,
+        matchedIds: parsed.matchedIds,
+        reasoning: parsed.reasoning,
+        tags: parsed.tags,
+      });
     } catch (e) {
-      console.error('[BD] transcribe failed:', e);
-      setVoiceTranscript('');
+      console.error('[BD] parse-query failed:', e);
+      setVoiceResult({
+        transcript,
+        matchedIds: [],
+        reasoning:
+          "I couldn't pull that apart — try rephrasing or check the logs.",
+        tags: [],
+      });
     }
   };
   const openDetail = (c: Candidate) => {
@@ -117,7 +165,10 @@ export default function App({ initialCandidates }: { initialCandidates: Candidat
           <VoiceResult
             theme={theme}
             candidates={candidates}
-            userTranscript={voiceTranscript}
+            userTranscript={voiceResult.transcript}
+            matchedIds={voiceResult.matchedIds}
+            reasoning={voiceResult.reasoning}
+            userTags={voiceResult.tags}
             onClose={goHome}
             onPickCandidate={openDetail}
             onSwipeAll={() => setRoute({ name: 'swipe' })}
