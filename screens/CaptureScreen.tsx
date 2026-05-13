@@ -1,30 +1,45 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Theme } from '@/lib/theme';
 import { QUICK_CAPTURE_SAMPLE } from '@/lib/data';
 import { Divider, ListeningDots } from '@/components/Shared';
+import { startRecording, transcribe, type RecorderController } from '@/lib/recorder';
 
 type Phase = 'idle' | 'recording' | 'transcribing' | 'structured';
 
 export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () => void }) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [transcript, setTranscript] = useState('');
+  const recorderRef = useRef<RecorderController | null>(null);
+  // Extraction is still stubbed against the sample until Step 5 wires Claude.
   const sample = QUICK_CAPTURE_SAMPLE;
 
-  const start = () => {
-    setPhase('recording');
-    let i = 0;
-    const tick = () => {
-      i += 8;
-      setTranscript(sample.raw.slice(0, i));
-      if (i < sample.raw.length) setTimeout(tick, 60);
-      else {
-        setTimeout(() => setPhase('transcribing'), 500);
-        setTimeout(() => setPhase('structured'), 1700);
-      }
-    };
-    tick();
+  const start = async () => {
+    setTranscript('');
+    try {
+      recorderRef.current = await startRecording();
+      setPhase('recording');
+    } catch (e) {
+      console.error('[BD] mic permission denied:', e);
+    }
+  };
+
+  const stop = async () => {
+    const ctrl = recorderRef.current;
+    if (!ctrl) return;
+    recorderRef.current = null;
+    setPhase('transcribing');
+    try {
+      const blob = await ctrl.stop();
+      const text = await transcribe(blob);
+      setTranscript(text);
+      setPhase('structured');
+    } catch (e) {
+      console.error('[BD] transcribe failed:', e);
+      setTranscript('— transcription failed, please try again —');
+      setPhase('structured');
+    }
   };
 
   return (
@@ -160,26 +175,30 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
                 />
               ))}
             </div>
-            <div
-              style={{
-                padding: '18px 18px',
-                borderRadius: 14,
-                background: 'rgba(245,239,230,0.04)',
-                border: `0.5px solid ${theme.lineDark}`,
-                fontFamily: theme.serif,
-                fontSize: 15,
-                lineHeight: 1.45,
-                color: theme.paper,
-                fontStyle: 'italic',
-                minHeight: 120,
-              }}
-            >
-              &ldquo;{transcript}
-              <span style={{ color: theme.gold }}>|</span>&rdquo;
-            </div>
+            {phase === 'recording' && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+                <button
+                  onClick={stop}
+                  style={{
+                    padding: '10px 22px',
+                    background: theme.gold,
+                    color: theme.bg,
+                    border: 'none',
+                    borderRadius: 999,
+                    fontSize: 10,
+                    letterSpacing: 2,
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Stop &amp; transcribe
+                </button>
+              </div>
+            )}
             {phase === 'transcribing' && (
-              <div style={{ marginTop: 16 }}>
-                <ListeningDots theme={theme} label="Extracting briefs, contacts, tags" />
+              <div style={{ marginTop: 8 }}>
+                <ListeningDots theme={theme} label="Transcribing" />
               </div>
             )}
           </div>
@@ -216,7 +235,7 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
                   fontStyle: 'italic',
                 }}
               >
-                &ldquo;{sample.raw}&rdquo;
+                &ldquo;{transcript || sample.raw}&rdquo;
               </div>
             </div>
 

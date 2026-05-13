@@ -41,6 +41,14 @@ export async function updateSession(request: NextRequest) {
     path === '/favicon.ico';
 
   if (!user && !isPublic) {
+    // API routes get a 401 JSON; redirecting a fetch() to /login produces an
+    // HTML response the caller can't parse.
+    if (path.startsWith('/api/')) {
+      return new NextResponse(
+        JSON.stringify({ error: 'unauthorized' }),
+        { status: 401, headers: { 'content-type': 'application/json' } },
+      );
+    }
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);

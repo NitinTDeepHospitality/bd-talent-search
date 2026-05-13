@@ -91,12 +91,16 @@ function ResultRow({
 export function VoiceResult({
   theme,
   candidates,
+  userTranscript,
   onClose,
   onPickCandidate,
   onSwipeAll,
 }: {
   theme: Theme;
   candidates: Candidate[];
+  // null = transcription still in flight; string = ready ('' = transcribe failed).
+  // undefined = no live query (fall back to the mock demo query).
+  userTranscript?: string | null;
   onClose: () => void;
   onPickCandidate: (c: Candidate) => void;
   onSwipeAll: () => void;
@@ -107,14 +111,20 @@ export function VoiceResult({
     .filter((c): c is Candidate => Boolean(c));
   const [phase, setPhase] = useState<'listening' | 'thinking' | 'done'>('listening');
 
+  // Only advance phases once we have a transcript. When the prop is null we
+  // sit on 'listening' (the transcribing indicator).
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('thinking'), 1200);
-    const t2 = setTimeout(() => setPhase('done'), 2400);
+    if (userTranscript === null) return;
+    const t1 = setTimeout(() => setPhase('thinking'), 600);
+    const t2 = setTimeout(() => setPhase('done'), 1400);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, []);
+  }, [userTranscript]);
+
+  const shownSpoken = userTranscript || q.spoken;
+  const transcribeFailed = userTranscript === '';
 
   return (
     <div
@@ -184,7 +194,9 @@ export function VoiceResult({
             color: theme.paper,
           }}
         >
-          &ldquo;{q.spoken}&rdquo;
+          {transcribeFailed
+            ? '— couldn’t transcribe, please try again —'
+            : `“${shownSpoken}”`}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 14 }}>
           {q.tags.map((t) => (
@@ -216,7 +228,12 @@ export function VoiceResult({
           >
             BD assistant
           </div>
-          {phase === 'listening' && <ListeningDots theme={theme} label="Listening" />}
+          {phase === 'listening' && (
+            <ListeningDots
+              theme={theme}
+              label={userTranscript === null ? 'Transcribing' : 'Listening'}
+            />
+          )}
           {phase === 'thinking' && (
             <ListeningDots theme={theme} label="Searching 7,142 contacts" />
           )}

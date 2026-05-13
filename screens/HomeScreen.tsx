@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import type { Theme } from '@/lib/theme';
 import { BelindaAvatar } from '@/components/Shared';
+import { startRecording, type RecorderController } from '@/lib/recorder';
+
+export type VoiceQuery = { audio: Blob } | { text: string };
 
 function Stat({ theme, v, l }: { theme: Theme; v: string; l: string }) {
   return (
@@ -95,12 +98,50 @@ export function HomeScreen({
   onSwipe,
 }: {
   theme: Theme;
-  onVoice?: () => void;
+  onVoice?: (q: VoiceQuery) => void;
   onCapture?: () => void;
   onOpps?: () => void;
   onSwipe?: () => void;
 }) {
   const [pulse, setPulse] = useState(false);
+  const recorderRef = useRef<RecorderController | null>(null);
+  const holdingRef = useRef(false);
+
+  const beginRecord = async () => {
+    setPulse(true);
+    holdingRef.current = true;
+    try {
+      const ctrl = await startRecording();
+      if (!holdingRef.current) {
+        // Released before getUserMedia returned — discard.
+        ctrl.cancel();
+        return;
+      }
+      recorderRef.current = ctrl;
+    } catch {
+      holdingRef.current = false;
+      setPulse(false);
+    }
+  };
+
+  const endRecord = async () => {
+    setPulse(false);
+    holdingRef.current = false;
+    const ctrl = recorderRef.current;
+    if (!ctrl) return;
+    recorderRef.current = null;
+    const blob = await ctrl.stop();
+    if (blob.size > 0) onVoice?.({ audio: blob });
+  };
+
+  const cancelRecord = () => {
+    holdingRef.current = false;
+    setPulse(false);
+    if (recorderRef.current) {
+      recorderRef.current.cancel();
+      recorderRef.current = null;
+    }
+  };
   return (
     <div
       style={{
@@ -202,12 +243,9 @@ export function HomeScreen({
         </div>
 
         <button
-          onPointerDown={() => setPulse(true)}
-          onPointerUp={() => {
-            setPulse(false);
-            onVoice?.();
-          }}
-          onPointerLeave={() => setPulse(false)}
+          onPointerDown={beginRecord}
+          onPointerUp={endRecord}
+          onPointerLeave={cancelRecord}
           style={{
             width: 140,
             height: 140,
@@ -274,7 +312,7 @@ export function HomeScreen({
           ].map((q, i) => (
             <button
               key={i}
-              onClick={onVoice}
+              onClick={() => onVoice?.({ text: q })}
               style={{
                 padding: '12px 14px',
                 borderRadius: 10,

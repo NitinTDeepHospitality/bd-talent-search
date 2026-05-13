@@ -6,9 +6,10 @@ import { JOBS, type Candidate } from '@/lib/data';
 import { IOSDevice } from '@/components/IOSDevice';
 import { Wordmark } from '@/components/Shared';
 import { TweaksPanel, type Tweaks } from '@/components/TweaksPanel';
-import { HomeScreen } from '@/screens/HomeScreen';
+import { HomeScreen, type VoiceQuery } from '@/screens/HomeScreen';
 import { VoiceResult } from '@/screens/VoiceResult';
 import { CaptureScreen } from '@/screens/CaptureScreen';
+import { transcribe } from '@/lib/recorder';
 import { OpportunityScreen } from '@/screens/OpportunityScreen';
 import { SwipeScreen } from '@/screens/SwipeScreen';
 import { DetailScreen } from '@/screens/DetailScreen';
@@ -58,6 +59,8 @@ export default function App({ initialCandidates }: { initialCandidates: Candidat
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [route, setRoute] = useState<Route>({ name: 'home' });
   const [lastCandidate, setLastCandidate] = useState<Candidate>(candidates[0]);
+  // null = still transcribing; string = transcript ready (empty string = error)
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
 
   const theme = THEMES[tweaks.theme] || THEMES.editorial;
   const voice = VOICE_LEVELS[tweaks.voice] || VOICE_LEVELS.prominent;
@@ -68,6 +71,22 @@ export default function App({ initialCandidates }: { initialCandidates: Candidat
   };
 
   const goHome = () => setRoute({ name: 'home' });
+
+  const handleVoice = async (q: VoiceQuery) => {
+    setRoute({ name: 'voice' });
+    if ('text' in q) {
+      setVoiceTranscript(q.text);
+      return;
+    }
+    setVoiceTranscript(null);
+    try {
+      const text = await transcribe(q.audio);
+      setVoiceTranscript(text);
+    } catch (e) {
+      console.error('[BD] transcribe failed:', e);
+      setVoiceTranscript('');
+    }
+  };
   const openDetail = (c: Candidate) => {
     setLastCandidate(c);
     setRoute({ name: 'detail', candidate: c });
@@ -87,7 +106,7 @@ export default function App({ initialCandidates }: { initialCandidates: Candidat
         return (
           <HomeScreen
             theme={theme}
-            onVoice={() => setRoute({ name: 'voice' })}
+            onVoice={handleVoice}
             onCapture={() => setRoute({ name: 'capture' })}
             onOpps={() => setRoute({ name: 'opps' })}
             onSwipe={() => setRoute({ name: 'swipe' })}
@@ -98,6 +117,7 @@ export default function App({ initialCandidates }: { initialCandidates: Candidat
           <VoiceResult
             theme={theme}
             candidates={candidates}
+            userTranscript={voiceTranscript}
             onClose={goHome}
             onPickCandidate={openDetail}
             onSwipeAll={() => setRoute({ name: 'swipe' })}
