@@ -33,10 +33,12 @@ What to skip:
 - Branded residences unless attached to a hotel
 
 Process:
-1. Use web_search 2–4 times to find recent signals. Vary the queries.
-2. For each finding worth surfacing (aim for 3–6 total), structure it as the schema below.
+1. Use web_search ONCE or twice maximum. Make each query count — broad enough to surface multiple useful signals from one search. Don't iterate searches looking for the perfect article.
+2. From whatever you find, structure 3–4 strongest signals as the schema below. Quality over quantity. Don't pad.
 3. Match candidates by genuine fit — capability, language, geography, tier. Be selective: 0–3 candidates per opportunity. If nobody in her network fits cleanly, return an empty list rather than forcing it.
 4. Draft an email only when there's an obvious recipient implied (a name in the article, or a known operator she'd reach out to). Match her register: editorial, terse, knowing, opens with a first name. No marketing voice.
+
+Budget constraint: this whole job has 60 seconds. Search efficiently, decide quickly, output JSON.
 
 Output: a JSON object with key "opportunities" containing an array. Each item:
 {
@@ -119,14 +121,19 @@ async function handler(request: Request) {
   try {
     response = await anthropic().messages.create({
       model: CLAUDE_MODEL,
-      max_tokens: 8000,
-      // Adaptive thinking helps Claude reason about which findings are worth
-      // surfacing and which candidates match.
-      thinking: { type: 'adaptive' },
-      output_config: { effort: 'medium' } as Anthropic.Messages.MessageCreateParams['output_config'],
+      max_tokens: 4000,
+      // No thinking — on Hobby's 60s cap, adaptive thinking blew the budget
+      // before web_search even returned. Effort: low is correspondingly tight.
+      thinking: { type: 'disabled' },
+      output_config: { effort: 'low' } as Anthropic.Messages.MessageCreateParams['output_config'],
       tools: [
-        // GA web search tool with dynamic filtering on Opus 4.7.
-        { type: 'web_search_20260209', name: 'web_search' } as unknown as Anthropic.ToolUnion,
+        // max_uses caps Claude at 2 searches; without it the model can spend
+        // the whole budget iterating queries.
+        {
+          type: 'web_search_20260209',
+          name: 'web_search',
+          max_uses: 2,
+        } as unknown as Anthropic.ToolUnion,
       ],
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userPrompt }],
