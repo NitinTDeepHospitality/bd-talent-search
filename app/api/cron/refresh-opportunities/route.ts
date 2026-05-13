@@ -64,12 +64,24 @@ type ClaudeOpportunity = {
 };
 
 function extractFinalText(blocks: Anthropic.ContentBlock[]): string | null {
-  // After web_search rounds, the last text block is the model's final answer.
+  // With web_search, the model emits text blocks interleaved with tool_use /
+  // tool_result. Take the text after the last tool_result so we skip
+  // citation preamble but keep the whole JSON if it spans multiple text
+  // blocks at the tail.
+  let lastToolIdx = -1;
   for (let i = blocks.length - 1; i >= 0; i--) {
-    const b = blocks[i];
-    if (b.type === 'text' && b.text.trim()) return b.text;
+    const t = blocks[i].type;
+    if (t === 'web_search_tool_result' || t === 'tool_use' || t === 'server_tool_use') {
+      lastToolIdx = i;
+      break;
+    }
   }
-  return null;
+  const tail = blocks
+    .slice(lastToolIdx + 1)
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('');
+  return tail.trim() || null;
 }
 
 function stripJsonFences(s: string): string {
@@ -175,7 +187,14 @@ async function handler(request: Request) {
   } catch (e) {
     console.error('[BD cron] JSON parse failed:', e, finalText.slice(0, 300));
     return NextResponse.json(
-      { error: 'parse_failed', raw: finalText.slice(0, 500) },
+      {
+        error: 'parse_failed',
+        stop_reason: response.stop_reason,
+        text_length: finalText.length,
+        // Show both ends so we can see whether it's a prefix or suffix issue.
+        head: finalText.slice(0, 200),
+        tail: finalText.slice(-300),
+      },
       { status: 502 },
     );
   }
