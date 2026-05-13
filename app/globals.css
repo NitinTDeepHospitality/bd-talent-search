@@ -68,7 +68,8 @@ textarea,
     box-shadow: none !important;
   }
   [data-iphone-notch],
-  [data-iphone-home-indicator] {
+  [data-iphone-home-indicator],
+  [data-iphone-statusbar] {
     display: none !important;
   }
   /* Re-anchor the nav pill bar as a fixed bottom tab strip */

@@ -132,7 +132,10 @@ export function IOSDevice({
           zIndex: 50,
         }}
       />
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+      <div
+        data-iphone-statusbar
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}
+      >
         <IOSStatusBar dark={dark} />
       </div>
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
