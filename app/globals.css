@@ -6,6 +6,28 @@ html, body {
   overflow-x: hidden;
 }
 
+/*
+ * Treat the whole app as a touch-first surface: no accidental text
+ * selection (iOS long-press caret handles), no system context menu on
+ * long-press, no flash highlight on tap. Inputs and text fields opt
+ * back in below so the user can still type and select what they typed.
+ */
+body {
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea,
+[contenteditable='true'],
+[contenteditable=''] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 * {
   box-sizing: border-box;
 }
