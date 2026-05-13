@@ -80,6 +80,59 @@ export async function refreshOpportunities(
   return (await r.json()) as RefreshOpportunitiesResult;
 }
 
+export type ExtractedCandidate = {
+  name: string | null;
+  age: number | null;
+  current_title: string | null;
+  current_hotel: string | null;
+  tenure: string | null;
+  location: string | null;
+  nationalities: string[];
+  languages: string[];
+  belinda_tier: 'black_book' | 'inner_circle' | 'watching' | null;
+  belinda_rating: number | null;
+  availability: string | null;
+  quote: string | null;
+  signals: {
+    word_on_street: string | null;
+    chemistry: string | null;
+    trajectory: string | null;
+    gut_note: string | null;
+  };
+  tags: string[];
+};
+
+export async function extractCandidate(
+  transcript: string,
+): Promise<ExtractedCandidate> {
+  const r = await fetch('/api/extract-candidate', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ transcript }),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`extract-candidate ${r.status}: ${detail.slice(0, 200)}`);
+  }
+  const data = (await r.json()) as { candidate: ExtractedCandidate };
+  return data.candidate;
+}
+
+export async function saveCandidate(
+  candidate: ExtractedCandidate,
+): Promise<{ id: string; name: string }> {
+  const r = await fetch('/api/candidates', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(candidate),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`save-candidate ${r.status}: ${detail.slice(0, 200)}`);
+  }
+  return (await r.json()) as { id: string; name: string };
+}
+
 export type ChatMessageForApi = {
   role: 'user' | 'assistant';
   content: string;

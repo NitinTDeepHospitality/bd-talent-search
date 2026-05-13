@@ -16,6 +16,7 @@ import { SwipeScreen } from '@/screens/SwipeScreen';
 import { DetailScreen } from '@/screens/DetailScreen';
 import { MatchScreen } from '@/screens/MatchScreen';
 import { BelindaChat } from '@/screens/BelindaChat';
+import { AddCandidate } from '@/screens/AddCandidate';
 
 const TWEAK_DEFAULTS: Tweaks = {
   theme: 'editorial',
@@ -30,6 +31,7 @@ type Route =
   | { name: 'capture' }
   | { name: 'opps' }
   | { name: 'swipe' }
+  | { name: 'add-candidate' }
   | { name: 'detail'; candidate: Candidate }
   | { name: 'match'; candidate: Candidate }
   | { name: 'chat'; candidate?: Candidate };
@@ -163,6 +165,7 @@ export default function App({
             onCapture={() => setRoute({ name: 'capture' })}
             onOpps={() => setRoute({ name: 'opps' })}
             onSwipe={() => setRoute({ name: 'swipe' })}
+            onAddCandidate={() => setRoute({ name: 'add-candidate' })}
           />
         );
       case 'voice':
@@ -181,6 +184,8 @@ export default function App({
         );
       case 'capture':
         return <CaptureScreen theme={theme} onClose={goHome} />;
+      case 'add-candidate':
+        return <AddCandidate theme={theme} onClose={goHome} />;
       case 'opps':
         return (
           <OpportunityScreen

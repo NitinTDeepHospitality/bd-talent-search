@@ -97,12 +97,14 @@ export function HomeScreen({
   onCapture,
   onOpps,
   onSwipe,
+  onAddCandidate,
 }: {
   theme: Theme;
   onVoice?: (q: VoiceQuery) => void;
   onCapture?: () => void;
   onOpps?: () => void;
   onSwipe?: () => void;
+  onAddCandidate?: () => void;
 }) {
   const [pulse, setPulse] = useState(false);
   const recorderRef = useRef<RecorderController | null>(null);
@@ -194,6 +196,33 @@ export function HomeScreen({
       <div style={{ margin: '14px 22px 0', display: 'flex', justifyContent: 'flex-start' }}>
         <PreviewBadge theme={theme} status="sample" note="seed network of 5 candidates" />
       </div>
+
+      {onAddCandidate && (
+        <button
+          onClick={onAddCandidate}
+          style={{
+            margin: '12px 22px 0',
+            padding: '12px 16px',
+            background: theme.gold,
+            color: theme.bg,
+            border: 'none',
+            borderRadius: 12,
+            fontFamily: theme.sans,
+            fontSize: 12,
+            letterSpacing: 1.5,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
+          Add a candidate
+        </button>
+      )}
 
       <div
         style={{
