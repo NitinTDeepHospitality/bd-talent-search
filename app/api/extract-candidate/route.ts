@@ -78,8 +78,10 @@ const RESPONSE_SCHEMA = {
     nationalities: { type: 'array', items: { type: 'string' } },
     languages: { type: 'array', items: { type: 'string' } },
     belinda_tier: {
-      type: ['string', 'null'],
-      enum: ['black_book', 'inner_circle', 'watching', null],
+      anyOf: [
+        { type: 'string', enum: ['black_book', 'inner_circle', 'watching'] },
+        { type: 'null' },
+      ],
     },
     belinda_rating: { type: ['number', 'null'] },
     availability: { type: ['string', 'null'] },
