@@ -93,31 +93,51 @@ export async function POST(request: Request) {
     `Belinda said: "${transcript}"\n\n` +
     `Her candidates:\n${JSON.stringify(candidates, null, 2)}`;
 
-  const response = await anthropic().messages.create({
-    model: CLAUDE_MODEL,
-    max_tokens: 1500,
-    thinking: { type: 'adaptive' },
-    output_config: {
-      effort: 'low',
-      format: { type: 'json_schema', schema: RESPONSE_SCHEMA },
-    } as Anthropic.Messages.MessageCreateParams['output_config'],
-    system: [
+  let response;
+  try {
+    response = await anthropic().messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 2500,
+      // Adaptive thinking + structured outputs was burning the token budget
+      // before the JSON was emitted. Ranking 5 candidates doesn't need
+      // thinking — disable it.
+      thinking: { type: 'disabled' },
+      output_config: {
+        effort: 'low',
+        format: { type: 'json_schema', schema: RESPONSE_SCHEMA },
+      } as Anthropic.Messages.MessageCreateParams['output_config'],
+      system: [
+        {
+          type: 'text',
+          text: SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    console.error('[BD] parse-query Anthropic call failed:', err);
+    return NextResponse.json(
       {
-        type: 'text',
-        text: SYSTEM_PROMPT,
-        cache_control: { type: 'ephemeral' },
+        error: 'anthropic_failed',
+        status: err.status,
+        message: err.message?.slice(0, 500),
       },
-    ],
-    messages: [{ role: 'user', content: userPrompt }],
-  });
+      { status: 502 },
+    );
+  }
 
-  // The structured-output text comes back in a text block.
   const textBlock = response.content.find(
     (b): b is Anthropic.TextBlock => b.type === 'text',
   );
   if (!textBlock) {
     return NextResponse.json(
-      { error: 'no_text_block', stop_reason: response.stop_reason },
+      {
+        error: 'no_text_block',
+        stop_reason: response.stop_reason,
+        blocks: response.content.map((b) => b.type),
+      },
       { status: 502 },
     );
   }
@@ -125,9 +145,13 @@ export async function POST(request: Request) {
   let parsed: ParseQueryResponse;
   try {
     parsed = JSON.parse(textBlock.text) as ParseQueryResponse;
-  } catch (e) {
+  } catch {
     return NextResponse.json(
-      { error: 'parse_failed', raw: textBlock.text.slice(0, 500) },
+      {
+        error: 'parse_failed',
+        stop_reason: response.stop_reason,
+        raw: textBlock.text.slice(0, 500),
+      },
       { status: 502 },
     );
   }
