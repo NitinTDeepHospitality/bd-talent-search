@@ -5,6 +5,14 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
+  // Prototype escape hatch — when set, every route is accessible without
+  // signing in. Anthropic/Whisper API routes go from gated to open, which
+  // means anyone with the URL can spend our API credit. Use only for a
+  // short, link-shared test window. Remove the env var to restore the gate.
+  if (process.env.BYPASS_AUTH === 'true') {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
