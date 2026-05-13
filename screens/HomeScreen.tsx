@@ -337,6 +337,7 @@ export function HomeScreen({
       </div>
 
       <div
+        data-home-dock
         style={{
           padding: '14px 22px 30px',
           display: 'flex',

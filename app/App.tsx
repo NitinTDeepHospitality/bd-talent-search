@@ -292,7 +292,7 @@ export default function App({
       </div>
 
       <div
-        data-app-chrome
+        data-app-nav
         style={{
           marginTop: 20,
           display: 'flex',
@@ -334,6 +334,7 @@ export default function App({
           );
         })}
         <button
+          data-app-chrome
           onClick={() => setTweaksOpen((o) => !o)}
           style={{
             padding: '8px 16px',

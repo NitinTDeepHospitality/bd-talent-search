@@ -136,7 +136,12 @@ export function IOSDevice({
         <IOSStatusBar dark={dark} />
       </div>
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, overflow: 'auto' }}>{children}</div>
+        <div
+          data-iphone-content
+          style={{ flex: 1, overflow: 'auto', position: 'relative' }}
+        >
+          {children}
+        </div>
       </div>
       <div
         data-iphone-home-indicator

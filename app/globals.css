@@ -29,7 +29,8 @@ html, body {
  * Mobile shell — under 700px we strip the desktop "iPhone mockup on a
  * marketing page" framing and let the screens fill the viewport. The iOS
  * status bar inside each screen stays (it's part of the visual design and
- * keeps headers from running into the real notch).
+ * keeps headers from running into the real notch). The nav pills get
+ * re-anchored as a fixed bottom bar so all screens remain reachable.
  */
 @media (max-width: 700px) {
   [data-app-shell] {
@@ -46,6 +47,46 @@ html, body {
   }
   [data-iphone-notch],
   [data-iphone-home-indicator] {
+    display: none !important;
+  }
+  /* Re-anchor the nav pill bar as a fixed bottom tab strip */
+  [data-app-nav] {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 100 !important;
+    margin-top: 0 !important;
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    background: rgba(11, 9, 7, 0.92) !important;
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    padding: 6px 4px calc(8px + env(safe-area-inset-bottom)) !important;
+    gap: 0 !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap !important;
+  }
+  [data-app-nav]::-webkit-scrollbar {
+    display: none;
+  }
+  [data-app-nav] > button {
+    flex: 0 0 auto;
+    padding: 8px 12px !important;
+    font-size: 10px !important;
+    letter-spacing: 1.1px !important;
+  }
+  /* Leave space at the bottom of every screen so absolutely-positioned
+     screen content (`inset: 0`) sits above the fixed nav. */
+  [data-iphone-content] {
+    padding-bottom: 56px !important;
+  }
+  /* The home-screen dock duplicates the bottom nav on mobile — hide it. */
+  [data-home-dock] {
     display: none !important;
   }
 }
