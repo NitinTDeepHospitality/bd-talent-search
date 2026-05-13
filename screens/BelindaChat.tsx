@@ -10,6 +10,7 @@ import {
   RESOURCES,
 } from '@/lib/data';
 import { streamChat, type ChatMessageForApi } from '@/lib/api';
+import { PreviewBadge } from '@/components/PreviewBadge';
 
 function Bubble({ theme, role, text }: { theme: Theme; role: 'me' | 'belinda'; text: string }) {
   const isMe = role === 'me';
@@ -224,15 +225,8 @@ export function BelindaChat({
           >
             Belinda <span style={{ fontStyle: 'italic', color: theme.gold }}>AI</span>
           </div>
-          <div
-            style={{
-              fontSize: 10,
-              color: theme.muted,
-              letterSpacing: 0.5,
-              marginTop: 2,
-            }}
-          >
-            <span style={{ color: '#8fcf82' }}>●</span> 40 years, on call
+          <div style={{ marginTop: 4 }}>
+            <PreviewBadge theme={theme} status="real" note="real conversation" />
           </div>
         </div>
       </div>

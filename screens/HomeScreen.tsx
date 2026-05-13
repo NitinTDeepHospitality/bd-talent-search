@@ -3,6 +3,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import type { Theme } from '@/lib/theme';
 import { BelindaAvatar } from '@/components/Shared';
+import { PreviewBadge } from '@/components/PreviewBadge';
 import { startRecording, type RecorderController } from '@/lib/recorder';
 
 export type VoiceQuery = { audio: Blob } | { text: string };
@@ -190,9 +191,13 @@ export function HomeScreen({
         </div>
       </div>
 
+      <div style={{ margin: '14px 22px 0', display: 'flex', justifyContent: 'flex-start' }}>
+        <PreviewBadge theme={theme} status="sample" note="seed network of 5 candidates" />
+      </div>
+
       <div
         style={{
-          margin: '20px 22px 0',
+          margin: '14px 22px 0',
           padding: '16px',
           background: 'rgba(184,150,107,0.06)',
           border: `0.5px solid ${theme.line}`,

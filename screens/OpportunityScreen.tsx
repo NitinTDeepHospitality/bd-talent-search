@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { Theme } from '@/lib/theme';
 import { type Candidate, type Opportunity, OPPORTUNITIES } from '@/lib/data';
+import { PreviewBadge } from '@/components/PreviewBadge';
 
 function findCandidate(
   candidates: Candidate[],
@@ -245,15 +246,18 @@ export function OpportunityScreen({
           </svg>
         </button>
         <div>
-          <div
-            style={{
-              fontSize: 9,
-              letterSpacing: 2,
-              color: theme.gold,
-              textTransform: 'uppercase',
-            }}
-          >
-            The world
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div
+              style={{
+                fontSize: 9,
+                letterSpacing: 2,
+                color: theme.gold,
+                textTransform: 'uppercase',
+              }}
+            >
+              The world
+            </div>
+            <PreviewBadge theme={theme} status="real" note="today's news, matched to your network" />
           </div>
           <div
             style={{

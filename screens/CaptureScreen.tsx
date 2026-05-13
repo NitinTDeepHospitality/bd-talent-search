@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import type { Theme } from '@/lib/theme';
 import { QUICK_CAPTURE_SAMPLE } from '@/lib/data';
 import { Divider, ListeningDots } from '@/components/Shared';
+import { PreviewBadge } from '@/components/PreviewBadge';
 import { startRecording, transcribe, type RecorderController } from '@/lib/recorder';
 import { extractCapture, type ExtractedRow } from '@/lib/api';
 
@@ -95,15 +96,18 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
           </svg>
         </button>
         <div>
-          <div
-            style={{
-              fontSize: 9,
-              letterSpacing: 2,
-              color: theme.gold,
-              textTransform: 'uppercase',
-            }}
-          >
-            Quick capture
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div
+              style={{
+                fontSize: 9,
+                letterSpacing: 2,
+                color: theme.gold,
+                textTransform: 'uppercase',
+              }}
+            >
+              Quick capture
+            </div>
+            <PreviewBadge theme={theme} status="coming-soon" note="save not yet active" />
           </div>
           <div
             style={{

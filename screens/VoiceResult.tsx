@@ -3,6 +3,7 @@
 import type { Theme } from '@/lib/theme';
 import { type Candidate, VOICE_QUERIES } from '@/lib/data';
 import { ListeningDots, SignalPill } from '@/components/Shared';
+import { PreviewBadge } from '@/components/PreviewBadge';
 
 function ResultRow({
   theme,
@@ -174,15 +175,18 @@ export function VoiceResult({
             <path d="M8 2L2 8l6 6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
           </svg>
         </button>
-        <div
-          style={{
-            fontSize: 9,
-            letterSpacing: 2,
-            color: theme.gold,
-            textTransform: 'uppercase',
-          }}
-        >
-          Voice search
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              fontSize: 9,
+              letterSpacing: 2,
+              color: theme.gold,
+              textTransform: 'uppercase',
+            }}
+          >
+            Voice search
+          </div>
+          <PreviewBadge theme={theme} status="real" note="your words, your matches" />
         </div>
       </div>
 
