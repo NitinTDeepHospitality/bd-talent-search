@@ -84,13 +84,19 @@ function extractFinalText(blocks: Anthropic.ContentBlock[]): string | null {
   return tail.trim() || null;
 }
 
-function stripJsonFences(s: string): string {
-  // Defensive — the prompt says no fences but models sometimes add them.
-  const trimmed = s.trim();
-  if (trimmed.startsWith('```')) {
-    return trimmed.replace(/^```(?:json)?\n?/, '').replace(/```$/, '').trim();
+function extractJsonObject(s: string): string {
+  // Strip markdown fences if present, then carve out the outermost balanced
+  // {...}. Defensive against preamble like "I have enough signals. Here is
+  // the JSON:" and trailing prose. The prompt forbids both but models still
+  // emit them.
+  let t = s.trim();
+  if (t.startsWith('```')) {
+    t = t.replace(/^```(?:json)?\n?/, '').replace(/```\s*$/, '').trim();
   }
-  return trimmed;
+  const start = t.indexOf('{');
+  const end = t.lastIndexOf('}');
+  if (start === -1 || end === -1 || end < start) return t;
+  return t.slice(start, end + 1);
 }
 
 async function handler(request: Request) {
@@ -183,7 +189,7 @@ async function handler(request: Request) {
 
   let parsed: { opportunities: ClaudeOpportunity[] };
   try {
-    parsed = JSON.parse(stripJsonFences(finalText));
+    parsed = JSON.parse(extractJsonObject(finalText));
   } catch (e) {
     console.error('[BD cron] JSON parse failed:', e, finalText.slice(0, 300));
     return NextResponse.json(
