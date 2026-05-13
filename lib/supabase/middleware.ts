@@ -38,6 +38,9 @@ export async function updateSession(request: NextRequest) {
   const isPublic =
     path.startsWith('/login') ||
     path.startsWith('/auth') ||
+    // Cron endpoints carry their own Bearer auth via CRON_SECRET — letting
+    // them through here delegates auth to the route handler itself.
+    path.startsWith('/api/cron') ||
     path === '/favicon.ico';
 
   if (!user && !isPublic) {

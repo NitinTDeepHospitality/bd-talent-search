@@ -4,6 +4,17 @@ import { useState } from 'react';
 import type { Theme } from '@/lib/theme';
 import { type Candidate, type Opportunity, OPPORTUNITIES } from '@/lib/data';
 
+function findCandidate(
+  candidates: Candidate[],
+  id: number | string,
+): Candidate | undefined {
+  // DB-sourced opportunities carry UUIDs that match Candidate.dbId; mock
+  // opportunities carry numeric Candidate.id.
+  return typeof id === 'string'
+    ? candidates.find((c) => c.dbId === id)
+    : candidates.find((c) => c.id === id);
+}
+
 function OpportunityCard({
   theme,
   o,
@@ -17,7 +28,7 @@ function OpportunityCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const matched = o.candidates
-    .map((id) => candidates.find((c) => c.id === id))
+    .map((id) => findCandidate(candidates, id))
     .filter((c): c is Candidate => Boolean(c));
   return (
     <div
@@ -185,14 +196,19 @@ function OpportunityCard({
 export function OpportunityScreen({
   theme,
   candidates,
+  opportunities,
   onClose,
   onOpenCandidate,
 }: {
   theme: Theme;
   candidates: Candidate[];
+  /** Live data from Supabase; falls back to mock when empty. */
+  opportunities?: Opportunity[];
   onClose: () => void;
   onOpenCandidate: (c: Candidate) => void;
 }) {
+  const rows =
+    opportunities && opportunities.length > 0 ? opportunities : OPPORTUNITIES;
   return (
     <div
       style={{
@@ -260,7 +276,7 @@ export function OpportunityScreen({
           gap: 14,
         }}
       >
-        {OPPORTUNITIES.map((o) => (
+        {rows.map((o) => (
           <OpportunityCard
             key={o.id}
             theme={theme}

@@ -24,6 +24,8 @@ export type CandidateExperience = {
 
 export type Candidate = {
   id: number;
+  /** DB UUID — present only when sourced from Supabase, undefined on mocks. */
+  dbId?: string;
   name: string;
   age: number;
   current: string;
@@ -294,9 +296,14 @@ export type Opportunity = {
   headline: string;
   when: string;
   why: string;
-  candidates: number[];
+  /**
+   * Mock rows use numeric Candidate.id; DB rows carry UUIDs that match
+   * Candidate.dbId. OpportunityScreen tries both.
+   */
+  candidates: Array<number | string>;
   draft: string | null;
   cta: string;
+  sourceUrl?: string;
 };
 
 export const OPPORTUNITIES: Opportunity[] = [

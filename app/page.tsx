@@ -1,18 +1,35 @@
 import App from './App';
-import { fetchCandidates } from '@/lib/supabase/queries';
-import { CANDIDATES as FALLBACK } from '@/lib/data';
+import {
+  fetchCandidates,
+  fetchOpportunities,
+} from '@/lib/supabase/queries';
+import { CANDIDATES as CANDIDATE_FALLBACK, type Opportunity } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  let candidates = FALLBACK;
-  try {
-    const fromDb = await fetchCandidates();
-    if (fromDb.length > 0) candidates = fromDb;
-  } catch (e) {
-    // If env vars are missing or DB is unreachable, fall back to mocks so the
-    // demo still renders. Surface the error in the server logs.
-    console.error('[BD Talent] candidate fetch failed, using mock data:', e);
+  let candidates = CANDIDATE_FALLBACK;
+  let opportunities: Opportunity[] = [];
+
+  // Run the two DB queries in parallel — they don't depend on each other.
+  const [candidatesResult, opportunitiesResult] = await Promise.allSettled([
+    fetchCandidates(),
+    fetchOpportunities(),
+  ]);
+
+  if (candidatesResult.status === 'fulfilled' && candidatesResult.value.length > 0) {
+    candidates = candidatesResult.value;
+  } else if (candidatesResult.status === 'rejected') {
+    console.error('[BD] candidate fetch failed, using mock:', candidatesResult.reason);
   }
-  return <App initialCandidates={candidates} />;
+
+  if (opportunitiesResult.status === 'fulfilled') {
+    opportunities = opportunitiesResult.value;
+  } else {
+    console.error('[BD] opportunities fetch failed:', opportunitiesResult.reason);
+  }
+
+  return (
+    <App initialCandidates={candidates} initialOpportunities={opportunities} />
+  );
 }

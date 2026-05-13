@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { THEMES, VOICE_LEVELS, DENSITIES } from '@/lib/theme';
-import { JOBS, type Candidate } from '@/lib/data';
+import { JOBS, type Candidate, type Opportunity } from '@/lib/data';
 import { IOSDevice } from '@/components/IOSDevice';
 import { Wordmark } from '@/components/Shared';
 import { TweaksPanel, type Tweaks } from '@/components/TweaksPanel';
@@ -54,8 +54,15 @@ const CAPTIONS: Record<string, string> = {
   chat: '08 — Ask Belinda',
 };
 
-export default function App({ initialCandidates }: { initialCandidates: Candidate[] }) {
+export default function App({
+  initialCandidates,
+  initialOpportunities = [],
+}: {
+  initialCandidates: Candidate[];
+  initialOpportunities?: Opportunity[];
+}) {
   const candidates = initialCandidates;
+  const opportunities = initialOpportunities;
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [route, setRoute] = useState<Route>({ name: 'home' });
@@ -181,6 +188,7 @@ export default function App({ initialCandidates }: { initialCandidates: Candidat
           <OpportunityScreen
             theme={theme}
             candidates={candidates}
+            opportunities={opportunities}
             onClose={goHome}
             onOpenCandidate={openDetail}
           />
