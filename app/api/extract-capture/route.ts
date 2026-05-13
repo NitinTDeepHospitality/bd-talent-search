@@ -28,7 +28,6 @@ const RESPONSE_SCHEMA = {
   properties: {
     extracted: {
       type: 'array',
-      maxItems: 12,
       items: {
         type: 'object',
         properties: {
