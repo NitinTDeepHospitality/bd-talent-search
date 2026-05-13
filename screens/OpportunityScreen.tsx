@@ -185,24 +185,60 @@ function OpportunityCard({
         </div>
       )}
 
-      <button
-        style={{
-          width: '100%',
-          padding: '11px',
-          marginTop: 4,
-          background: 'transparent',
-          color: theme.goldLight,
-          border: `0.5px solid ${theme.gold}`,
-          borderRadius: 999,
-          fontSize: 10,
-          letterSpacing: 2,
-          textTransform: 'uppercase',
-          fontWeight: 500,
-          cursor: 'pointer',
-        }}
-      >
-        {o.cta}
-      </button>
+      {o.sourceUrl ? (
+        <a
+          href={o.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            width: '100%',
+            padding: '11px',
+            marginTop: 4,
+            background: 'transparent',
+            color: theme.goldLight,
+            textDecoration: 'none',
+            border: `0.5px solid ${theme.gold}`,
+            borderRadius: 999,
+            fontFamily: theme.sans,
+            fontSize: 10,
+            letterSpacing: 2,
+            textTransform: 'uppercase',
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+        >
+          Read the article
+          <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden>
+            <path
+              d="M3 3h6v6M9 3 3.5 8.5"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              fill="none"
+            />
+          </svg>
+        </a>
+      ) : (
+        <div
+          style={{
+            width: '100%',
+            padding: '11px',
+            marginTop: 4,
+            textAlign: 'center',
+            color: theme.muted,
+            fontFamily: theme.sans,
+            fontSize: 10,
+            letterSpacing: 2,
+            textTransform: 'uppercase',
+          }}
+        >
+          No source link
+        </div>
+      )}
     </div>
   );
 }
