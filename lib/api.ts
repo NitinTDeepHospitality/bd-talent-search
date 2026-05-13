@@ -50,6 +50,36 @@ export async function extractCapture(
   return data.extracted;
 }
 
+export type RefreshOpportunitiesRegion =
+  | 'global'
+  | 'europe'
+  | 'middle_east'
+  | 'asia'
+  | 'americas';
+
+export type RefreshOpportunitiesResult = {
+  inserted: number;
+  found: number;
+  region: RefreshOpportunitiesRegion;
+  deduped?: boolean;
+  note?: string;
+};
+
+export async function refreshOpportunities(
+  region: RefreshOpportunitiesRegion,
+): Promise<RefreshOpportunitiesResult> {
+  const r = await fetch('/api/refresh-opportunities', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ region }),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`refresh ${r.status}: ${detail.slice(0, 200)}`);
+  }
+  return (await r.json()) as RefreshOpportunitiesResult;
+}
+
 export type ChatMessageForApi = {
   role: 'user' | 'assistant';
   content: string;

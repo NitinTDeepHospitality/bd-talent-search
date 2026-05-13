@@ -39,8 +39,6 @@ const NAV_ITEMS = [
   { id: 'voice', label: 'Voice' },
   { id: 'capture', label: 'Capture' },
   { id: 'opps', label: 'Opps' },
-  { id: 'swipe', label: 'Swipe' },
-  { id: 'chat', label: 'Ask' },
 ] as const;
 
 const CAPTIONS: Record<string, string> = {
@@ -311,10 +309,7 @@ export default function App({
           return (
             <button
               key={t.id}
-              onClick={() => {
-                if (t.id === 'chat') setRoute({ name: 'chat', candidate: lastCandidate });
-                else setRoute({ name: t.id } as Route);
-              }}
+              onClick={() => setRoute({ name: t.id } as Route)}
               style={{
                 padding: '8px 16px',
                 borderRadius: 999,

@@ -1,9 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Theme } from '@/lib/theme';
 import { type Candidate, type Opportunity, OPPORTUNITIES } from '@/lib/data';
 import { PreviewBadge } from '@/components/PreviewBadge';
+import {
+  refreshOpportunities,
+  type RefreshOpportunitiesRegion,
+} from '@/lib/api';
+
+const REGION_OPTIONS: Array<{ id: RefreshOpportunitiesRegion; label: string }> = [
+  { id: 'global', label: 'Global' },
+  { id: 'europe', label: 'Europe' },
+  { id: 'middle_east', label: 'Middle East' },
+  { id: 'asia', label: 'Asia' },
+  { id: 'americas', label: 'Americas' },
+];
 
 function findCandidate(
   candidates: Candidate[],
@@ -210,6 +223,31 @@ export function OpportunityScreen({
 }) {
   const rows =
     opportunities && opportunities.length > 0 ? opportunities : OPPORTUNITIES;
+  const router = useRouter();
+  const [region, setRegion] = useState<RefreshOpportunitiesRegion>('global');
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshNote, setRefreshNote] = useState<string | null>(null);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    setRefreshNote(null);
+    try {
+      const result = await refreshOpportunities(region);
+      if (result.inserted === 0 && result.deduped) {
+        setRefreshNote('Nothing new since the last pull.');
+      } else if (result.inserted === 0) {
+        setRefreshNote('No signals worth surfacing.');
+      } else {
+        setRefreshNote(`Added ${result.inserted} new signal${result.inserted === 1 ? '' : 's'}.`);
+      }
+      router.refresh();
+    } catch (e) {
+      console.error('[BD] refresh failed:', e);
+      setRefreshNote('Couldn’t reach the scout — try again.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
   return (
     <div
       style={{
@@ -270,6 +308,91 @@ export function OpportunityScreen({
             Opportunities <span style={{ fontStyle: 'italic', color: theme.goldLight }}>for you</span>
           </div>
         </div>
+      </div>
+
+      <div style={{ padding: '6px 20px 12px' }}>
+        <div
+          style={{
+            fontSize: 9,
+            letterSpacing: 1.5,
+            color: theme.muted,
+            textTransform: 'uppercase',
+            marginBottom: 8,
+          }}
+        >
+          Region
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            gap: 6,
+            overflowX: 'auto',
+            paddingBottom: 4,
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {REGION_OPTIONS.map((r) => {
+            const active = region === r.id;
+            return (
+              <button
+                key={r.id}
+                onClick={() => setRegion(r.id)}
+                disabled={refreshing}
+                style={{
+                  flex: '0 0 auto',
+                  padding: '6px 12px',
+                  borderRadius: 999,
+                  background: active ? theme.gold : 'rgba(245,239,230,0.04)',
+                  color: active ? theme.bg : theme.paper,
+                  border: `0.5px solid ${active ? theme.gold : theme.lineDark}`,
+                  fontFamily: theme.sans,
+                  fontSize: 11,
+                  letterSpacing: 0.4,
+                  fontWeight: active ? 600 : 400,
+                  cursor: refreshing ? 'wait' : 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {r.label}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          onClick={onRefresh}
+          disabled={refreshing}
+          style={{
+            marginTop: 10,
+            width: '100%',
+            padding: '11px 16px',
+            borderRadius: 999,
+            background: refreshing ? 'rgba(184,150,107,0.25)' : theme.gold,
+            color: refreshing ? theme.muted : theme.bg,
+            border: 'none',
+            fontFamily: theme.sans,
+            fontSize: 11,
+            letterSpacing: 1.8,
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            cursor: refreshing ? 'wait' : 'pointer',
+          }}
+        >
+          {refreshing ? 'Scouting the web…' : 'Refresh signals'}
+        </button>
+        {refreshNote && (
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 11,
+              color: theme.muted,
+              fontStyle: 'italic',
+              textAlign: 'center',
+              fontFamily: theme.serif,
+            }}
+          >
+            {refreshNote}
+          </div>
+        )}
       </div>
 
       <div
