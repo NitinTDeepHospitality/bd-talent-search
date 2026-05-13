@@ -1,10 +1,40 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Theme } from '@/lib/theme';
 import { BelindaAvatar } from '@/components/Shared';
 import { PreviewBadge } from '@/components/PreviewBadge';
 import { startRecording, type RecorderController } from '@/lib/recorder';
+
+function useNow() {
+  // Lock to null on first render so server + client paint the same HTML,
+  // then mount-side useEffect fills it in and ticks every minute so the
+  // greeting flips from morning → afternoon → evening if she lingers.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+function formatDateTime(d: Date): string {
+  const weekday = d
+    .toLocaleDateString(undefined, { weekday: 'long' })
+    .toUpperCase();
+  const hh = d.getHours().toString().padStart(2, '0');
+  const mm = d.getMinutes().toString().padStart(2, '0');
+  return `${weekday}, ${hh}:${mm}`;
+}
+
+function partOfDayGreeting(d: Date): string {
+  const h = d.getHours();
+  if (h < 5) return 'Good night';
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 export type VoiceQuery = { audio: Blob } | { text: string };
 
@@ -109,6 +139,11 @@ export function HomeScreen({
   const [pulse, setPulse] = useState(false);
   const recorderRef = useRef<RecorderController | null>(null);
   const holdingRef = useRef(false);
+  const now = useNow();
+  // Before mount, paint a neutral placeholder so SSR/CSR match (avoids
+  // hydration mismatch warnings).
+  const dateTimeLabel = now ? formatDateTime(now) : '';
+  const greeting = now ? partOfDayGreeting(now) : 'Hello';
 
   const beginRecord = async () => {
     setPulse(true);
@@ -172,9 +207,10 @@ export function HomeScreen({
               letterSpacing: 2.5,
               color: theme.gold,
               textTransform: 'uppercase',
+              minHeight: 13,
             }}
           >
-            Tuesday, 7:42
+            {dateTimeLabel}
           </div>
           <div
             style={{
@@ -184,7 +220,7 @@ export function HomeScreen({
               fontWeight: 400,
             }}
           >
-            Good morning,{' '}
+            {greeting},{' '}
             <span style={{ fontStyle: 'italic', color: theme.goldLight }}>Belinda</span>
           </div>
         </div>
