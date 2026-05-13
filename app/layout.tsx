@@ -1,10 +1,17 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'BD Talent Search',
   description: "A concept for institutionalising Belinda's craft",
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  // Black background under the address bar / home indicator area on iOS.
+  themeColor: '#0B0907',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

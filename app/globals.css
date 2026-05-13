@@ -24,3 +24,28 @@ html, body {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/*
+ * Mobile shell — under 700px we strip the desktop "iPhone mockup on a
+ * marketing page" framing and let the screens fill the viewport. The iOS
+ * status bar inside each screen stays (it's part of the visual design and
+ * keeps headers from running into the real notch).
+ */
+@media (max-width: 700px) {
+  [data-app-shell] {
+    padding: 0 !important;
+  }
+  [data-app-chrome] {
+    display: none !important;
+  }
+  [data-iphone-bezel] {
+    width: 100vw !important;
+    height: 100dvh !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  [data-iphone-notch],
+  [data-iphone-home-indicator] {
+    display: none !important;
+  }
+}

@@ -243,6 +243,7 @@ export default function App({
 
   return (
     <div
+      data-app-shell
       style={{
         minHeight: '100vh',
         width: '100%',
@@ -254,7 +255,7 @@ export default function App({
         fontFamily: theme.sans,
       }}
     >
-      <div style={{ textAlign: 'center', marginBottom: 26 }}>
+      <div data-app-chrome style={{ textAlign: 'center', marginBottom: 26 }}>
         <Wordmark theme={theme} size={11} />
         <div
           style={{
@@ -276,6 +277,7 @@ export default function App({
       </div>
 
       <div
+        data-app-chrome
         style={{
           marginTop: 22,
           textAlign: 'center',
@@ -290,6 +292,7 @@ export default function App({
       </div>
 
       <div
+        data-app-chrome
         style={{
           marginTop: 20,
           display: 'flex',

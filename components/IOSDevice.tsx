@@ -105,6 +105,7 @@ export function IOSDevice({
 }) {
   return (
     <div
+      data-iphone-bezel
       style={{
         width,
         height,
@@ -118,6 +119,7 @@ export function IOSDevice({
       }}
     >
       <div
+        data-iphone-notch
         style={{
           position: 'absolute',
           top: 11,
@@ -137,6 +139,7 @@ export function IOSDevice({
         <div style={{ flex: 1, overflow: 'auto' }}>{children}</div>
       </div>
       <div
+        data-iphone-home-indicator
         style={{
           position: 'absolute',
           bottom: 0,
