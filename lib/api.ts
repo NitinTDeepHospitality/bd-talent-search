@@ -194,6 +194,57 @@ export async function saveCandidate(
   return (await r.json()) as { id: string; name: string };
 }
 
+export type ExtractedClient = {
+  name: string | null;
+  type:
+    | 'third_party_operator'
+    | 'luxury_collection'
+    | 'family_office'
+    | 'developer'
+    | 'big_chain'
+    | null;
+  status: 'active' | 'dormant' | null;
+  hq_city: string | null;
+  last_contact_at: string | null;
+  notes: string | null;
+  briefs: Array<{
+    role: string;
+    hotel_name: string | null;
+    city: string | null;
+    opening_date: string | null;
+  }>;
+  contacts: Array<{ name: string; role: string | null }>;
+};
+
+export async function extractClient(transcript: string): Promise<ExtractedClient> {
+  const r = await fetch('/api/extract-client', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ transcript }),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`extract-client ${r.status}: ${detail.slice(0, 200)}`);
+  }
+  const data = (await r.json()) as { client: ExtractedClient };
+  return data.client;
+}
+
+export async function saveClient(
+  client: ExtractedClient,
+): Promise<{ id: string; name: string; brief_ids: string[] }> {
+  const r = await fetch('/api/clients', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(client),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`save-client ${r.status}: ${detail.slice(0, 200)}`);
+  }
+  return (await r.json()) as { id: string; name: string; brief_ids: string[] };
+}
+
 export type ChatMessageForApi = {
   role: 'user' | 'assistant';
   content: string;

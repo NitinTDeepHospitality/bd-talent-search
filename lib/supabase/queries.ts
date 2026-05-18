@@ -3,7 +3,7 @@
 
 import 'server-only';
 import { supabaseServer } from './server';
-import type { Candidate, Opportunity } from '@/lib/data';
+import type { Candidate, Client, ClientBrief, Opportunity } from '@/lib/data';
 
 export type Todo = {
   id: string;
@@ -157,6 +157,73 @@ function rowToOpportunity(r: DbOpportunity): Opportunity {
     cta: r.draft_email ? 'Send the draft' : 'Open brief',
     sourceUrl: r.source_url ?? undefined,
   };
+}
+
+type DbClient = {
+  id: string;
+  name: string;
+  type: Client['type'];
+  status: string | null;
+  hq_city: string | null;
+  last_contact_at: string | null;
+  notes: string | null;
+  briefs:
+    | Array<{
+        id: string;
+        role: string;
+        city: string | null;
+        hotel_name: string | null;
+        opening_date: string | null;
+        status: string | null;
+        brief_shortlist: Array<{ candidate_id: string }>;
+      }>
+    | null;
+};
+
+function rowToClient(r: DbClient): Client {
+  const briefs = (r.briefs ?? []).filter(
+    (b) => b.status !== 'closed' && b.status !== 'placed',
+  );
+  return {
+    id: r.id,
+    name: r.name,
+    type: r.type,
+    status: (r.status === 'dormant' ? 'dormant' : 'active') as Client['status'],
+    hqCity: r.hq_city,
+    lastContactAt: r.last_contact_at,
+    notes: r.notes,
+    openBriefs: briefs.map(
+      (b): ClientBrief => ({
+        id: b.id,
+        role: b.role,
+        city: b.city,
+        hotelName: b.hotel_name,
+        openingDate: b.opening_date,
+        status: b.status ?? 'open',
+        shortlistedCandidateIds: (b.brief_shortlist ?? []).map(
+          (s) => s.candidate_id,
+        ),
+      }),
+    ),
+  };
+}
+
+export async function fetchClients(): Promise<Client[]> {
+  const sb = supabaseServer();
+  const { data, error } = await sb
+    .from('companies')
+    .select(
+      `
+      id, name, type, status, hq_city, last_contact_at, notes,
+      briefs(id, role, city, hotel_name, opening_date, status,
+        brief_shortlist(candidate_id))
+    `,
+    )
+    .order('status', { ascending: true })
+    .order('last_contact_at', { ascending: false, nullsFirst: false })
+    .limit(100);
+  if (error) throw error;
+  return (data as unknown as DbClient[]).map(rowToClient);
 }
 
 export async function fetchOpportunities(): Promise<Opportunity[]> {

@@ -314,6 +314,32 @@ export type Opportunity = {
   sourceUrl?: string;
 };
 
+export type ClientBrief = {
+  id: string;
+  role: string;
+  city: string | null;
+  hotelName: string | null;
+  openingDate: string | null;
+  status: string;
+  shortlistedCandidateIds: string[];
+};
+
+export type Client = {
+  id: string;
+  name: string;
+  type:
+    | 'third_party_operator'
+    | 'luxury_collection'
+    | 'family_office'
+    | 'developer'
+    | 'big_chain';
+  status: 'active' | 'dormant';
+  hqCity: string | null;
+  lastContactAt: string | null;
+  notes: string | null;
+  openBriefs: ClientBrief[];
+};
+
 export const OPPORTUNITIES: Opportunity[] = [
   {
     id: 'o1',

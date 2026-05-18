@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { THEMES, VOICE_LEVELS, DENSITIES } from '@/lib/theme';
-import { JOBS, type Candidate, type Opportunity } from '@/lib/data';
+import { JOBS, type Candidate, type Client, type Opportunity } from '@/lib/data';
 import { IOSDevice } from '@/components/IOSDevice';
 import { Wordmark } from '@/components/Shared';
 import { TweaksPanel, type Tweaks } from '@/components/TweaksPanel';
@@ -18,6 +18,9 @@ import { MatchScreen } from '@/screens/MatchScreen';
 import { BelindaChat } from '@/screens/BelindaChat';
 import { AddCandidate } from '@/screens/AddCandidate';
 import { TasksScreen } from '@/screens/TasksScreen';
+import { ClientsScreen } from '@/screens/ClientsScreen';
+import { ClientDetailScreen } from '@/screens/ClientDetailScreen';
+import { AddClient } from '@/screens/AddClient';
 import type { SavedTodo } from '@/lib/api';
 
 const TWEAK_DEFAULTS: Tweaks = {
@@ -35,15 +38,18 @@ type Route =
   | { name: 'swipe' }
   | { name: 'add-candidate' }
   | { name: 'tasks' }
+  | { name: 'clients' }
+  | { name: 'add-client' }
+  | { name: 'client-detail'; client: Client }
   | { name: 'detail'; candidate: Candidate }
   | { name: 'match'; candidate: Candidate }
   | { name: 'chat'; candidate?: Candidate };
 
 const NAV_ITEMS = [
   { id: 'home', label: 'Home' },
-  { id: 'voice', label: 'Voice' },
   { id: 'capture', label: 'Capture' },
   { id: 'tasks', label: 'Tasks' },
+  { id: 'clients', label: 'Clients' },
   { id: 'opps', label: 'Opps' },
 ] as const;
 
@@ -62,14 +68,17 @@ export default function App({
   initialCandidates,
   initialOpportunities = [],
   initialTodos = [],
+  initialClients = [],
 }: {
   initialCandidates: Candidate[];
   initialOpportunities?: Opportunity[];
   initialTodos?: SavedTodo[];
+  initialClients?: Client[];
 }) {
   const candidates = initialCandidates;
   const opportunities = initialOpportunities;
   const todos = initialTodos;
+  const clients = initialClients;
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [route, setRoute] = useState<Route>({ name: 'home' });
@@ -195,6 +204,29 @@ export default function App({
         return <AddCandidate theme={theme} onClose={goHome} />;
       case 'tasks':
         return <TasksScreen theme={theme} todos={todos} onClose={goHome} />;
+      case 'clients':
+        return (
+          <ClientsScreen
+            theme={theme}
+            clients={clients}
+            candidates={candidates}
+            onClose={goHome}
+            onOpenClient={(c) => setRoute({ name: 'client-detail', client: c })}
+            onAddClient={() => setRoute({ name: 'add-client' })}
+          />
+        );
+      case 'client-detail':
+        return (
+          <ClientDetailScreen
+            theme={theme}
+            client={route.client}
+            candidates={candidates}
+            onClose={() => setRoute({ name: 'clients' })}
+            onOpenCandidate={openDetail}
+          />
+        );
+      case 'add-client':
+        return <AddClient theme={theme} onClose={() => setRoute({ name: 'clients' })} />;
       case 'opps':
         return (
           <OpportunityScreen
