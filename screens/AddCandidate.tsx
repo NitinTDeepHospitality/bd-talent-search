@@ -30,31 +30,34 @@ const READINESS_LABELS: Record<'ready' | 'passive' | 'settled', string> = {
   settled: 'Settled, not moving',
 };
 
+// Empty strings / 0s / false stand in for "not specified" — matches the
+// shape Claude returns under the Anthropic structured-output union cap.
+// The server route normalises these to NULL before persisting.
 function emptyCandidate(): ExtractedCandidate {
   return {
-    name: null,
-    age: null,
-    current_title: null,
-    current_hotel: null,
-    tenure: null,
-    current_location: null,
+    name: '',
+    age: 0,
+    current_title: '',
+    current_hotel: '',
+    tenure: '',
+    current_location: '',
     open_to_locations: [],
     nationalities: [],
     languages: [],
-    last_job_change_date: null,
-    last_contact_at: null,
+    last_job_change_date: '',
+    last_contact_at: '',
     move_readiness: null,
-    family_travels: null,
-    child_education_required: null,
+    family_travels: false,
+    child_education_required: false,
     belinda_tier: null,
-    belinda_rating: null,
-    availability: null,
-    quote: null,
+    belinda_rating: 0,
+    availability: '',
+    quote: '',
     signals: {
-      word_on_street: null,
-      chemistry: null,
-      trajectory: null,
-      gut_note: null,
+      word_on_street: '',
+      chemistry: '',
+      trajectory: '',
+      gut_note: '',
     },
     tags: [],
   };
@@ -150,7 +153,8 @@ export function AddCandidate({
   ) =>
     setCandidate((c) => ({
       ...c,
-      signals: { ...c.signals, [k]: v.trim() ? v : null },
+      // Empty string stands in for "not specified"; server normalises.
+      signals: { ...c.signals, [k]: v },
     }));
 
   return (
@@ -460,24 +464,24 @@ function ReviewForm({
       <div style={labelStyle}>Name *</div>
       <input
         style={inputStyle}
-        value={candidate.name ?? ''}
-        onChange={(e) => onChange({ name: e.target.value || null })}
+        value={candidate.name}
+        onChange={(e) => onChange({ name: e.target.value })}
         placeholder="e.g. Sophie Laurent"
       />
 
       <div style={labelStyle}>Current title</div>
       <input
         style={inputStyle}
-        value={candidate.current_title ?? ''}
-        onChange={(e) => onChange({ current_title: e.target.value || null })}
+        value={candidate.current_title}
+        onChange={(e) => onChange({ current_title: e.target.value })}
         placeholder="General Manager"
       />
 
       <div style={labelStyle}>Current hotel</div>
       <input
         style={inputStyle}
-        value={candidate.current_hotel ?? ''}
-        onChange={(e) => onChange({ current_hotel: e.target.value || null })}
+        value={candidate.current_hotel}
+        onChange={(e) => onChange({ current_hotel: e.target.value })}
         placeholder="Claridge's"
       />
 
@@ -486,8 +490,8 @@ function ReviewForm({
           <div style={labelStyle}>Current location</div>
           <input
             style={inputStyle}
-            value={candidate.current_location ?? ''}
-            onChange={(e) => onChange({ current_location: e.target.value || null })}
+            value={candidate.current_location}
+            onChange={(e) => onChange({ current_location: e.target.value })}
             placeholder="London"
           />
         </div>
@@ -495,8 +499,8 @@ function ReviewForm({
           <div style={labelStyle}>Tenure</div>
           <input
             style={inputStyle}
-            value={candidate.tenure ?? ''}
-            onChange={(e) => onChange({ tenure: e.target.value || null })}
+            value={candidate.tenure}
+            onChange={(e) => onChange({ tenure: e.target.value })}
             placeholder="8 yrs"
           />
         </div>
@@ -562,10 +566,10 @@ function ReviewForm({
             min={1}
             max={10}
             step={0.1}
-            value={candidate.belinda_rating ?? ''}
+            value={candidate.belinda_rating || ''}
             onChange={(e) =>
               onChange({
-                belinda_rating: e.target.value ? Number(e.target.value) : null,
+                belinda_rating: e.target.value ? Number(e.target.value) : 0,
               })
             }
           />
@@ -575,8 +579,8 @@ function ReviewForm({
       <div style={labelStyle}>Availability</div>
       <input
         style={inputStyle}
-        value={candidate.availability ?? ''}
-        onChange={(e) => onChange({ availability: e.target.value || null })}
+        value={candidate.availability}
+        onChange={(e) => onChange({ availability: e.target.value })}
         placeholder="Quietly looking"
       />
 
@@ -608,9 +612,9 @@ function ReviewForm({
           <input
             style={inputStyle}
             type="date"
-            value={candidate.last_job_change_date ?? ''}
+            value={candidate.last_job_change_date}
             onChange={(e) =>
-              onChange({ last_job_change_date: e.target.value || null })
+              onChange({ last_job_change_date: e.target.value })
             }
           />
         </div>
@@ -619,9 +623,9 @@ function ReviewForm({
           <input
             style={inputStyle}
             type="date"
-            value={candidate.last_contact_at ?? ''}
+            value={candidate.last_contact_at}
             onChange={(e) =>
-              onChange({ last_contact_at: e.target.value || null })
+              onChange({ last_contact_at: e.target.value })
             }
           />
         </div>
@@ -642,9 +646,9 @@ function ReviewForm({
         >
           <input
             type="checkbox"
-            checked={candidate.family_travels === true}
+            checked={candidate.family_travels}
             onChange={(e) =>
-              onChange({ family_travels: e.target.checked ? true : null })
+              onChange({ family_travels: e.target.checked })
             }
           />
           Family travels
@@ -663,10 +667,10 @@ function ReviewForm({
         >
           <input
             type="checkbox"
-            checked={candidate.child_education_required === true}
+            checked={candidate.child_education_required}
             onChange={(e) =>
               onChange({
-                child_education_required: e.target.checked ? true : null,
+                child_education_required: e.target.checked,
               })
             }
           />
@@ -679,7 +683,7 @@ function ReviewForm({
       <div style={labelStyle}>Word on the street</div>
       <input
         style={inputStyle}
-        value={candidate.signals.word_on_street ?? ''}
+        value={candidate.signals.word_on_street}
         onChange={(e) => onChangeSignal('word_on_street', e.target.value)}
         placeholder="What's being said in the industry"
       />
@@ -687,7 +691,7 @@ function ReviewForm({
       <div style={labelStyle}>Chemistry</div>
       <input
         style={inputStyle}
-        value={candidate.signals.chemistry ?? ''}
+        value={candidate.signals.chemistry}
         onChange={(e) => onChangeSignal('chemistry', e.target.value)}
         placeholder="How they read in a room"
       />
@@ -695,7 +699,7 @@ function ReviewForm({
       <div style={labelStyle}>Trajectory</div>
       <input
         style={inputStyle}
-        value={candidate.signals.trajectory ?? ''}
+        value={candidate.signals.trajectory}
         onChange={(e) => onChangeSignal('trajectory', e.target.value)}
         placeholder="Where they're headed"
       />
@@ -703,7 +707,7 @@ function ReviewForm({
       <div style={labelStyle}>Gut note</div>
       <input
         style={inputStyle}
-        value={candidate.signals.gut_note ?? ''}
+        value={candidate.signals.gut_note}
         onChange={(e) => onChangeSignal('gut_note', e.target.value)}
         placeholder="Your instinct"
       />

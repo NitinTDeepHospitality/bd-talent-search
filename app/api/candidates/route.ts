@@ -37,6 +37,20 @@ type IncomingBody = {
   tags?: string[];
 };
 
+// Empty strings come back from the form when a field is left blank, and
+// also from Claude when it can't fill a scalar (the Anthropic 16-union cap
+// forces us to use plain `string` instead of nullable). Postgres `date`
+// and `integer` columns reject "", so normalise to null before insert.
+const blankToNull = (v: string | null | undefined): string | null => {
+  if (v == null) return null;
+  const t = v.trim();
+  return t.length === 0 ? null : t;
+};
+const zeroToNull = (v: number | null | undefined): number | null => {
+  if (v == null || v === 0 || Number.isNaN(v)) return null;
+  return v;
+};
+
 export async function POST(request: Request) {
   const body = (await request.json()) as IncomingBody;
 
@@ -55,26 +69,26 @@ export async function POST(request: Request) {
     .from('candidates')
     .insert({
       name: body.name.trim(),
-      age: body.age ?? null,
-      current_title: body.current_title ?? null,
-      current_hotel: body.current_hotel ?? null,
-      tenure: body.tenure ?? null,
+      age: zeroToNull(body.age),
+      current_title: blankToNull(body.current_title),
+      current_hotel: blankToNull(body.current_hotel),
+      tenure: blankToNull(body.tenure),
       // Keep legacy `location` populated for backward-compat with screens
       // that still read it (DetailScreen, OpportunityCard match labels).
-      location: body.current_location ?? null,
-      current_location: body.current_location ?? null,
+      location: blankToNull(body.current_location),
+      current_location: blankToNull(body.current_location),
       open_to_locations: body.open_to_locations ?? [],
       nationalities: body.nationalities ?? [],
       languages: body.languages ?? [],
-      last_job_change_date: body.last_job_change_date ?? null,
-      last_contact_at: body.last_contact_at ?? null,
+      last_job_change_date: blankToNull(body.last_job_change_date),
+      last_contact_at: blankToNull(body.last_contact_at),
       move_readiness: body.move_readiness ?? null,
       family_travels: body.family_travels ?? null,
       child_education_required: body.child_education_required ?? null,
       belinda_tier: body.belinda_tier ?? null,
-      belinda_rating: body.belinda_rating ?? null,
-      availability: body.availability ?? null,
-      quote: body.quote ?? null,
+      belinda_rating: zeroToNull(body.belinda_rating),
+      availability: blankToNull(body.availability),
+      quote: blankToNull(body.quote),
       consent_status: 'unknown' as const,
     })
     .select('id')

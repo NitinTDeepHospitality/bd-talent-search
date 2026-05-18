@@ -135,30 +135,33 @@ export async function refreshOpportunities(
   return (await r.json()) as RefreshOpportunitiesResult;
 }
 
+// Empty strings / 0s stand in for "not specified" — Anthropic schema cap on
+// nullable parameters forced this; the review form treats them as nulls
+// when editing, and the server route nulls them before insert.
 export type ExtractedCandidate = {
-  name: string | null;
-  age: number | null;
-  current_title: string | null;
-  current_hotel: string | null;
-  tenure: string | null;
-  current_location: string | null;
+  name: string;
+  age: number;
+  current_title: string;
+  current_hotel: string;
+  tenure: string;
+  current_location: string;
   open_to_locations: string[];
   nationalities: string[];
   languages: string[];
-  last_job_change_date: string | null;
-  last_contact_at: string | null;
+  last_job_change_date: string;
+  last_contact_at: string;
   move_readiness: 'ready' | 'passive' | 'settled' | null;
-  family_travels: boolean | null;
-  child_education_required: boolean | null;
+  family_travels: boolean;
+  child_education_required: boolean;
   belinda_tier: 'black_book' | 'inner_circle' | 'watching' | null;
-  belinda_rating: number | null;
-  availability: string | null;
-  quote: string | null;
+  belinda_rating: number;
+  availability: string;
+  quote: string;
   signals: {
-    word_on_street: string | null;
-    chemistry: string | null;
-    trajectory: string | null;
-    gut_note: string | null;
+    word_on_street: string;
+    chemistry: string;
+    trajectory: string;
+    gut_note: string;
   };
   tags: string[];
 };

@@ -13,7 +13,7 @@ export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `You are Belinda's onboarding assistant. Belinda is a senior hospitality talent broker; she's adding a candidate to her own network by speaking about them. Your job is to turn her memo into a clean structured record.
 
-The memo is conversational — names, hotels, years, languages, family, gut feelings, gossip, dates. Pull out everything you can; leave fields null when she doesn't mention them.
+The memo is conversational — names, hotels, years, languages, family, gut feelings, gossip, dates. Pull out everything you can. When she doesn't mention a field: use empty string "" for text, 0 for numbers, false for booleans. Only the two enum fields (move_readiness, belinda_tier) accept null when unknown. Do NOT invent values — leave it blank.
 
 Facts (what's on paper):
 - name (required if she mentions it)
@@ -53,44 +53,49 @@ If the memo is too thin to extract a name, return an empty object — better to 
 
 Return ONLY a JSON object. No prose, no fences, no preamble.`;
 
+// Anthropic structured outputs cap union/nullable parameters at 16. Empty
+// strings stand in for "not specified" on scalars; the server route below
+// normalises empty/zero values to NULL before inserting.
 const RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
-    name: { type: ['string', 'null'] },
-    age: { type: ['number', 'null'] },
-    current_title: { type: ['string', 'null'] },
-    current_hotel: { type: ['string', 'null'] },
-    tenure: { type: ['string', 'null'] },
-    current_location: { type: ['string', 'null'] },
+    name: { type: 'string' },
+    age: { type: 'number' },
+    current_title: { type: 'string' },
+    current_hotel: { type: 'string' },
+    tenure: { type: 'string' },
+    current_location: { type: 'string' },
     open_to_locations: { type: 'array', items: { type: 'string' } },
     nationalities: { type: 'array', items: { type: 'string' } },
     languages: { type: 'array', items: { type: 'string' } },
-    last_job_change_date: { type: ['string', 'null'] },
-    last_contact_at: { type: ['string', 'null'] },
+    last_job_change_date: { type: 'string' },
+    last_contact_at: { type: 'string' },
+    // Tri-state needs the union — model has to be able to say "ready / passive
+    // / settled / unknown". Two enums = two unions, well under the 16 cap.
     move_readiness: {
       anyOf: [
         { type: 'string', enum: ['ready', 'passive', 'settled'] },
         { type: 'null' },
       ],
     },
-    family_travels: { type: ['boolean', 'null'] },
-    child_education_required: { type: ['boolean', 'null'] },
+    family_travels: { type: 'boolean' },
+    child_education_required: { type: 'boolean' },
     belinda_tier: {
       anyOf: [
         { type: 'string', enum: ['black_book', 'inner_circle', 'watching'] },
         { type: 'null' },
       ],
     },
-    belinda_rating: { type: ['number', 'null'] },
-    availability: { type: ['string', 'null'] },
-    quote: { type: ['string', 'null'] },
+    belinda_rating: { type: 'number' },
+    availability: { type: 'string' },
+    quote: { type: 'string' },
     signals: {
       type: 'object',
       properties: {
-        word_on_street: { type: ['string', 'null'] },
-        chemistry: { type: ['string', 'null'] },
-        trajectory: { type: ['string', 'null'] },
-        gut_note: { type: ['string', 'null'] },
+        word_on_street: { type: 'string' },
+        chemistry: { type: 'string' },
+        trajectory: { type: 'string' },
+        gut_note: { type: 'string' },
       },
       required: ['word_on_street', 'chemistry', 'trajectory', 'gut_note'],
       additionalProperties: false,
@@ -122,30 +127,33 @@ const RESPONSE_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+// Note: nullable scalars come back as empty string / 0 from Claude (see
+// schema above). The server route + client review form normalise those
+// to null before persisting or rendering.
 export type ExtractedCandidate = {
-  name: string | null;
-  age: number | null;
-  current_title: string | null;
-  current_hotel: string | null;
-  tenure: string | null;
-  current_location: string | null;
+  name: string;
+  age: number;
+  current_title: string;
+  current_hotel: string;
+  tenure: string;
+  current_location: string;
   open_to_locations: string[];
   nationalities: string[];
   languages: string[];
-  last_job_change_date: string | null;
-  last_contact_at: string | null;
+  last_job_change_date: string;
+  last_contact_at: string;
   move_readiness: 'ready' | 'passive' | 'settled' | null;
-  family_travels: boolean | null;
-  child_education_required: boolean | null;
+  family_travels: boolean;
+  child_education_required: boolean;
   belinda_tier: 'black_book' | 'inner_circle' | 'watching' | null;
-  belinda_rating: number | null;
-  availability: string | null;
-  quote: string | null;
+  belinda_rating: number;
+  availability: string;
+  quote: string;
   signals: {
-    word_on_street: string | null;
-    chemistry: string | null;
-    trajectory: string | null;
-    gut_note: string | null;
+    word_on_street: string;
+    chemistry: string;
+    trajectory: string;
+    gut_note: string;
   };
   tags: string[];
 };
