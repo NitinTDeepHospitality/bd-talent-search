@@ -22,6 +22,13 @@ type DbCandidate = {
   belinda_tier: 'black_book' | 'inner_circle' | 'watching' | null;
   quote: string | null;
   availability: string | null;
+  current_location: string | null;
+  open_to_locations: string[] | null;
+  last_job_change_date: string | null;
+  last_contact_at: string | null;
+  move_readiness: 'ready' | 'passive' | 'settled' | null;
+  family_travels: boolean | null;
+  child_education_required: boolean | null;
   candidate_experience: Array<{ brand: string; role: string | null; years: string | null; ord: number | null }>;
   candidate_signals: Array<{ type: string; note: string }>;
   candidate_tags: Array<{ axis: string; value: string }>;
@@ -48,6 +55,13 @@ function rowToCandidate(r: DbCandidate, idx: number): Candidate {
   return {
     id: idx + 1, // UI Candidate.id is number; UUID lives in dbId
     dbId: r.id,
+    currentLocation: r.current_location,
+    openToLocations: r.open_to_locations ?? [],
+    lastJobChangeDate: r.last_job_change_date,
+    lastContactAt: r.last_contact_at,
+    moveReadiness: r.move_readiness,
+    familyTravels: r.family_travels,
+    childEducationRequired: r.child_education_required,
     name: r.name,
     age: r.age ?? 0,
     current: currentParts.join(', '),
@@ -137,6 +151,8 @@ export async function fetchCandidates(): Promise<Candidate[]> {
       id, name, age, current_title, current_hotel, tenure, location,
       photo_url, nationalities, languages, pnl, keys,
       belinda_rating, belinda_tier, quote, availability,
+      current_location, open_to_locations, last_job_change_date,
+      last_contact_at, move_readiness, family_travels, child_education_required,
       candidate_experience(brand, role, years, ord),
       candidate_signals(type, note),
       candidate_tags(axis, value)

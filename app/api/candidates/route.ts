@@ -15,9 +15,15 @@ type IncomingBody = {
   current_title?: string | null;
   current_hotel?: string | null;
   tenure?: string | null;
-  location?: string | null;
+  current_location?: string | null;
+  open_to_locations?: string[];
   nationalities?: string[];
   languages?: string[];
+  last_job_change_date?: string | null;
+  last_contact_at?: string | null;
+  move_readiness?: 'ready' | 'passive' | 'settled' | null;
+  family_travels?: boolean | null;
+  child_education_required?: boolean | null;
   belinda_tier?: 'black_book' | 'inner_circle' | 'watching' | null;
   belinda_rating?: number | null;
   availability?: string | null;
@@ -53,9 +59,18 @@ export async function POST(request: Request) {
       current_title: body.current_title ?? null,
       current_hotel: body.current_hotel ?? null,
       tenure: body.tenure ?? null,
-      location: body.location ?? null,
+      // Keep legacy `location` populated for backward-compat with screens
+      // that still read it (DetailScreen, OpportunityCard match labels).
+      location: body.current_location ?? null,
+      current_location: body.current_location ?? null,
+      open_to_locations: body.open_to_locations ?? [],
       nationalities: body.nationalities ?? [],
       languages: body.languages ?? [],
+      last_job_change_date: body.last_job_change_date ?? null,
+      last_contact_at: body.last_contact_at ?? null,
+      move_readiness: body.move_readiness ?? null,
+      family_travels: body.family_travels ?? null,
+      child_education_required: body.child_education_required ?? null,
       belinda_tier: body.belinda_tier ?? null,
       belinda_rating: body.belinda_rating ?? null,
       availability: body.availability ?? null,

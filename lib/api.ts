@@ -86,9 +86,15 @@ export type ExtractedCandidate = {
   current_title: string | null;
   current_hotel: string | null;
   tenure: string | null;
-  location: string | null;
+  current_location: string | null;
+  open_to_locations: string[];
   nationalities: string[];
   languages: string[];
+  last_job_change_date: string | null;
+  last_contact_at: string | null;
+  move_readiness: 'ready' | 'passive' | 'settled' | null;
+  family_travels: boolean | null;
+  child_education_required: boolean | null;
   belinda_tier: 'black_book' | 'inner_circle' | 'watching' | null;
   belinda_rating: number | null;
   availability: string | null;

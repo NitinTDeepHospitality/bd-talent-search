@@ -11,6 +11,78 @@ const SIGNALS: Array<{ k: keyof Candidate['signals']; label: string }> = [
   { k: 'gutNote', label: "Belinda's gut" },
 ];
 
+const READINESS_LABEL: Record<'ready' | 'passive' | 'settled', string> = {
+  ready: 'Ready to move',
+  passive: 'Open to right brief',
+  settled: 'Settled',
+};
+
+function relativeDate(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return iso;
+  const days = Math.floor(ms / 86400000);
+  if (days < 0) return new Date(iso).toLocaleDateString();
+  if (days === 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  const months = Math.round(days / 30);
+  if (months < 12) return months === 1 ? '1 month ago' : `${months} months ago`;
+  const years = (days / 365).toFixed(1).replace(/\.0$/, '');
+  return `${years} yr ago`;
+}
+
+function MobilityBlock({ theme, c }: { theme: Theme; c: Candidate }) {
+  type Row = { label: string; value: string };
+  const rows: Row[] = [];
+  if (c.moveReadiness) rows.push({ label: 'Readiness', value: READINESS_LABEL[c.moveReadiness] });
+  if (c.currentLocation || c.location) rows.push({ label: 'Based in', value: c.currentLocation || c.location });
+  if (c.openToLocations && c.openToLocations.length > 0)
+    rows.push({ label: 'Open to', value: c.openToLocations.join(', ') });
+  if (c.lastContactAt) rows.push({ label: 'Last spoke', value: relativeDate(c.lastContactAt) });
+  if (c.lastJobChangeDate) rows.push({ label: 'In role since', value: relativeDate(c.lastJobChangeDate) });
+  if (c.familyTravels === true) rows.push({ label: 'Family', value: 'Travels with' });
+  if (c.childEducationRequired === true) rows.push({ label: 'Schools', value: 'Required for kids' });
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div>
+      <Divider theme={theme} label="Mobility & contact" />
+      <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {rows.map((r) => (
+          <div
+            key={r.label}
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 12,
+              fontSize: 13,
+              color: theme.paper,
+            }}
+          >
+            <div
+              style={{
+                width: 92,
+                flexShrink: 0,
+                fontSize: 9,
+                letterSpacing: 1.5,
+                textTransform: 'uppercase',
+                color: theme.muted,
+                fontWeight: 500,
+              }}
+            >
+              {r.label}
+            </div>
+            <div style={{ flex: 1, color: theme.goldLight, fontFamily: theme.serif, fontStyle: 'italic' }}>
+              {r.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DetailScreen({
   theme,
   voice,
@@ -180,6 +252,8 @@ export function DetailScreen({
           <SerifStat theme={theme} value={c.keys} label="Keys" />
           <SerifStat theme={theme} value={c.age} label="Age" />
         </div>
+
+        <MobilityBlock theme={theme} c={c} />
 
         <div>
           <Divider theme={theme} label="Belinda's Read" />

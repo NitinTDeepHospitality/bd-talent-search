@@ -24,6 +24,12 @@ const TIER_LABELS: Record<'black_book' | 'inner_circle' | 'watching', string> = 
   watching: 'Watching',
 };
 
+const READINESS_LABELS: Record<'ready' | 'passive' | 'settled', string> = {
+  ready: 'Ready to move',
+  passive: 'Open to right brief',
+  settled: 'Settled, not moving',
+};
+
 function emptyCandidate(): ExtractedCandidate {
   return {
     name: null,
@@ -31,9 +37,15 @@ function emptyCandidate(): ExtractedCandidate {
     current_title: null,
     current_hotel: null,
     tenure: null,
-    location: null,
+    current_location: null,
+    open_to_locations: [],
     nationalities: [],
     languages: [],
+    last_job_change_date: null,
+    last_contact_at: null,
+    move_readiness: null,
+    family_travels: null,
+    child_education_required: null,
     belinda_tier: null,
     belinda_rating: null,
     availability: null,
@@ -471,11 +483,11 @@ function ReviewForm({
 
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1 }}>
-          <div style={labelStyle}>Location</div>
+          <div style={labelStyle}>Current location</div>
           <input
             style={inputStyle}
-            value={candidate.location ?? ''}
-            onChange={(e) => onChange({ location: e.target.value || null })}
+            value={candidate.current_location ?? ''}
+            onChange={(e) => onChange({ current_location: e.target.value || null })}
             placeholder="London"
           />
         </div>
@@ -489,6 +501,21 @@ function ReviewForm({
           />
         </div>
       </div>
+
+      <div style={labelStyle}>Open to (comma-separated)</div>
+      <input
+        style={inputStyle}
+        value={candidate.open_to_locations.join(', ')}
+        onChange={(e) =>
+          onChange({
+            open_to_locations: e.target.value
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean),
+          })
+        }
+        placeholder="Mediterranean, GCC, Switzerland"
+      />
 
       <div style={labelStyle}>Languages (comma-separated)</div>
       <input
@@ -552,6 +579,100 @@ function ReviewForm({
         onChange={(e) => onChange({ availability: e.target.value || null })}
         placeholder="Quietly looking"
       />
+
+      <div style={{ ...labelStyle, marginTop: 24, color: theme.gold }}>Mobility &amp; recency</div>
+
+      <div style={labelStyle}>Move readiness</div>
+      <select
+        style={{ ...inputStyle, appearance: 'none' }}
+        value={candidate.move_readiness ?? ''}
+        onChange={(e) =>
+          onChange({
+            move_readiness: (e.target.value || null) as
+              | 'ready'
+              | 'passive'
+              | 'settled'
+              | null,
+          })
+        }
+      >
+        <option value="">—</option>
+        <option value="ready">{READINESS_LABELS.ready}</option>
+        <option value="passive">{READINESS_LABELS.passive}</option>
+        <option value="settled">{READINESS_LABELS.settled}</option>
+      </select>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={labelStyle}>Last job change</div>
+          <input
+            style={inputStyle}
+            type="date"
+            value={candidate.last_job_change_date ?? ''}
+            onChange={(e) =>
+              onChange({ last_job_change_date: e.target.value || null })
+            }
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={labelStyle}>Last spoke</div>
+          <input
+            style={inputStyle}
+            type="date"
+            value={candidate.last_contact_at ?? ''}
+            onChange={(e) =>
+              onChange({ last_contact_at: e.target.value || null })
+            }
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+        <label
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: 14,
+            fontSize: 12,
+            color: theme.paper,
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={candidate.family_travels === true}
+            onChange={(e) =>
+              onChange({ family_travels: e.target.checked ? true : null })
+            }
+          />
+          Family travels
+        </label>
+        <label
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: 14,
+            fontSize: 12,
+            color: theme.paper,
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={candidate.child_education_required === true}
+            onChange={(e) =>
+              onChange({
+                child_education_required: e.target.checked ? true : null,
+              })
+            }
+          />
+          Schools required
+        </label>
+      </div>
 
       <div style={{ ...labelStyle, marginTop: 24, color: theme.gold }}>Your signals</div>
 

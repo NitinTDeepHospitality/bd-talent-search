@@ -13,7 +13,7 @@ export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `You are Belinda's onboarding assistant. Belinda is a senior hospitality talent broker; she's adding a candidate to her own network by speaking about them. Your job is to turn her memo into a clean structured record.
 
-The memo is conversational — names, hotels, years, languages, gut feelings, gossip. Pull out:
+The memo is conversational — names, hotels, years, languages, family, gut feelings, gossip, dates. Pull out everything you can; leave fields null when she doesn't mention them.
 
 Facts (what's on paper):
 - name (required if she mentions it)
@@ -21,14 +21,24 @@ Facts (what's on paper):
 - current_title (e.g. "General Manager", "Director of Sales & Marketing")
 - current_hotel (e.g. "Claridge's", "Aman Venice")
 - tenure (e.g. "8 yrs", "4 years")
-- location (city or city → mobile region, e.g. "London", "Rome → open to Europe")
-- nationalities (array of nationalities or "British", "French", etc.)
+- nationalities (array of nationalities — "British", "French", etc.)
 - languages (array of 2-letter codes preferred — EN, FR, IT, DE — or full names)
+
+Location + mobility:
+- current_location — city/region of their current role (e.g. "London", "Rome", "Singapore")
+- open_to_locations — array of places they'd consider moving to (e.g. ["Mediterranean", "GCC", "Anywhere in Europe"])
+- family_travels — boolean. True if she says spouse/partner/kids would relocate with them. Null if not discussed.
+- child_education_required — boolean. True if she mentions schools, education for children, "needs international school". Null if not discussed.
+
+Recency (date her phrasing as best you can — use today's date as anchor):
+- last_job_change_date — when they last changed jobs. ISO date string (YYYY-MM-DD). E.g. "started at Claridge's in March 2022" → "2022-03-01". Approximate if she's vague.
+- last_contact_at — when Belinda last spoke to them. "We last spoke at FT summit in February" → "<this year>-02-01".
+- move_readiness — one of "ready" (actively wants to move), "passive" (open to right brief), "settled" (not moving). Infer if not explicit.
 
 Belinda's read (her secret sauce — pull aggressively):
 - belinda_tier — one of "black_book" (her most protected contacts), "inner_circle" (high-trust, regularly placed), "watching" (interesting but not yet validated). Infer from her phrasing if she doesn't say outright.
 - belinda_rating — 1.0 to 10.0. Default to a sensible value if she gives a qualitative read.
-- availability — e.g. "Quietly looking", "Settled", "Open to right brief"
+- availability — short phrase, e.g. "Quietly looking", "Settled", "Open to right brief". Often overlaps with move_readiness; keep both populated when there's nuance.
 - quote — a single short line she'd actually say about this candidate (her register, not yours). Only include if she said something quotable; do NOT invent.
 
 Signals (Belinda's intel):
@@ -41,30 +51,7 @@ Tags — short phrases (≤3 words) that capture searchable attributes: "lifesty
 
 If the memo is too thin to extract a name, return an empty object — better to ask her to redo than to invent.
 
-Return ONLY a JSON object. No prose, no fences, no preamble.
-
-Schema:
-{
-  "name": string | null,
-  "age": number | null,
-  "current_title": string | null,
-  "current_hotel": string | null,
-  "tenure": string | null,
-  "location": string | null,
-  "nationalities": string[],
-  "languages": string[],
-  "belinda_tier": "black_book" | "inner_circle" | "watching" | null,
-  "belinda_rating": number | null,
-  "availability": string | null,
-  "quote": string | null,
-  "signals": {
-    "word_on_street": string | null,
-    "chemistry": string | null,
-    "trajectory": string | null,
-    "gut_note": string | null
-  },
-  "tags": string[]
-}`;
+Return ONLY a JSON object. No prose, no fences, no preamble.`;
 
 const RESPONSE_SCHEMA = {
   type: 'object',
@@ -74,9 +61,20 @@ const RESPONSE_SCHEMA = {
     current_title: { type: ['string', 'null'] },
     current_hotel: { type: ['string', 'null'] },
     tenure: { type: ['string', 'null'] },
-    location: { type: ['string', 'null'] },
+    current_location: { type: ['string', 'null'] },
+    open_to_locations: { type: 'array', items: { type: 'string' } },
     nationalities: { type: 'array', items: { type: 'string' } },
     languages: { type: 'array', items: { type: 'string' } },
+    last_job_change_date: { type: ['string', 'null'] },
+    last_contact_at: { type: ['string', 'null'] },
+    move_readiness: {
+      anyOf: [
+        { type: 'string', enum: ['ready', 'passive', 'settled'] },
+        { type: 'null' },
+      ],
+    },
+    family_travels: { type: ['boolean', 'null'] },
+    child_education_required: { type: ['boolean', 'null'] },
     belinda_tier: {
       anyOf: [
         { type: 'string', enum: ['black_book', 'inner_circle', 'watching'] },
@@ -105,9 +103,15 @@ const RESPONSE_SCHEMA = {
     'current_title',
     'current_hotel',
     'tenure',
-    'location',
+    'current_location',
+    'open_to_locations',
     'nationalities',
     'languages',
+    'last_job_change_date',
+    'last_contact_at',
+    'move_readiness',
+    'family_travels',
+    'child_education_required',
     'belinda_tier',
     'belinda_rating',
     'availability',
@@ -124,9 +128,15 @@ export type ExtractedCandidate = {
   current_title: string | null;
   current_hotel: string | null;
   tenure: string | null;
-  location: string | null;
+  current_location: string | null;
+  open_to_locations: string[];
   nationalities: string[];
   languages: string[];
+  last_job_change_date: string | null;
+  last_contact_at: string | null;
+  move_readiness: 'ready' | 'passive' | 'settled' | null;
+  family_travels: boolean | null;
+  child_education_required: boolean | null;
   belinda_tier: 'black_book' | 'inner_circle' | 'watching' | null;
   belinda_rating: number | null;
   availability: string | null;

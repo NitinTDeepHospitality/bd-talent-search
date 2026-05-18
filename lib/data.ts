@@ -44,6 +44,14 @@ export type Candidate = {
   quote: string;
   availability: string;
   match: number;
+  // Phase 1 CRM extras — optional because mock seed rows don't have them.
+  currentLocation?: string | null;
+  openToLocations?: string[];
+  lastJobChangeDate?: string | null;
+  lastContactAt?: string | null;
+  moveReadiness?: 'ready' | 'passive' | 'settled' | null;
+  familyTravels?: boolean | null;
+  childEducationRequired?: boolean | null;
 };
 
 export const CANDIDATES: Candidate[] = [
