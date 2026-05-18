@@ -245,6 +245,49 @@ export async function saveClient(
   return (await r.json()) as { id: string; name: string; brief_ids: string[] };
 }
 
+export type ScheduleFollowUpInput = {
+  subject: string;
+  startsAt: string; // ISO timestamp
+  durationMinutes?: number;
+  bodyHtml?: string;
+  candidateId?: string;
+  companyId?: string;
+};
+
+export type ScheduledFollowUp = {
+  event_id: string;
+  web_link: string | null;
+  starts_at: string;
+};
+
+export async function scheduleFollowUp(
+  input: ScheduleFollowUpInput,
+): Promise<ScheduledFollowUp> {
+  const r = await fetch('/api/calendar/event', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) {
+    let parsed: { error?: string; message?: string } = {};
+    try {
+      parsed = await r.json();
+    } catch {
+      /* ignore */
+    }
+    if (r.status === 401) {
+      throw new Error(
+        parsed.message ??
+          'Calendar access expired. Sign in with Microsoft to refresh.',
+      );
+    }
+    throw new Error(
+      `schedule-follow-up ${r.status}: ${parsed.error ?? 'unknown'}`,
+    );
+  }
+  return (await r.json()) as ScheduledFollowUp;
+}
+
 export type ChatMessageForApi = {
   role: 'user' | 'assistant';
   content: string;

@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import type { Theme, VoiceLevel } from '@/lib/theme';
 import { type Candidate, RESOURCES } from '@/lib/data';
 import { Divider, SerifStat, TierMark } from '@/components/Shared';
+import { FollowUpDialog } from '@/components/FollowUpDialog';
 
 const SIGNALS: Array<{ k: keyof Candidate['signals']; label: string }> = [
   { k: 'wordOnStreet', label: 'Word on the street' },
@@ -100,6 +102,7 @@ export function DetailScreen({
 }) {
   const c = candidate;
   const signals = SIGNALS.slice(0, voice.signalCount);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
 
   return (
     <div
@@ -409,6 +412,36 @@ export function DetailScreen({
           </button>
         )}
 
+        {c.dbId && (
+          <button
+            onClick={() => setFollowUpOpen(true)}
+            style={{
+              background: 'transparent',
+              color: theme.goldLight,
+              border: `0.5px solid ${theme.gold}`,
+              borderRadius: 999,
+              padding: '12px 18px',
+              fontFamily: theme.sans,
+              fontSize: 11,
+              letterSpacing: 1.8,
+              textTransform: 'uppercase',
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              width: '100%',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+              <rect x="1.5" y="3" width="11" height="9.5" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none" />
+              <path d="M4 1.5v2.5M10 1.5v2.5M1.5 6h11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            {c.followUpAt ? 'Reschedule follow-up' : 'Schedule follow-up'}
+          </button>
+        )}
+
         <button
           onClick={onShortlist}
           style={{
@@ -430,6 +463,13 @@ export function DetailScreen({
           Shortlist for the Carlyle
         </button>
       </div>
+      <FollowUpDialog
+        theme={theme}
+        open={followUpOpen}
+        onClose={() => setFollowUpOpen(false)}
+        subject={`Follow-up — ${c.name}`}
+        candidateId={c.dbId}
+      />
     </div>
   );
 }

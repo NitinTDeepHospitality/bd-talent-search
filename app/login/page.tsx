@@ -17,7 +17,12 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'azure',
       options: {
-        scopes: 'email offline_access',
+        // Phase 4: Calendars.ReadWrite lets us create real Outlook
+        // events on Belinda's behalf for follow-ups. The Microsoft Graph
+        // permission must also be granted on the Azure app registration
+        // (API permissions → add Calendars.ReadWrite, delegated).
+        scopes:
+          'email offline_access https://graph.microsoft.com/Calendars.ReadWrite',
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     });

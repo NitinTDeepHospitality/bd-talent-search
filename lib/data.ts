@@ -52,6 +52,9 @@ export type Candidate = {
   moveReadiness?: 'ready' | 'passive' | 'settled' | null;
   familyTravels?: boolean | null;
   childEducationRequired?: boolean | null;
+  // Phase 4 — Outlook follow-up scheduling
+  followUpAt?: string | null;
+  followUpEventId?: string | null;
 };
 
 export const CANDIDATES: Candidate[] = [
@@ -338,6 +341,8 @@ export type Client = {
   lastContactAt: string | null;
   notes: string | null;
   openBriefs: ClientBrief[];
+  followUpAt?: string | null;
+  followUpEventId?: string | null;
 };
 
 export const OPPORTUNITIES: Opportunity[] = [

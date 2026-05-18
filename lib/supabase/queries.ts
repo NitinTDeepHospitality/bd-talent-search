@@ -61,6 +61,8 @@ type DbCandidate = {
   move_readiness: 'ready' | 'passive' | 'settled' | null;
   family_travels: boolean | null;
   child_education_required: boolean | null;
+  follow_up_at: string | null;
+  follow_up_event_id: string | null;
   candidate_experience: Array<{ brand: string; role: string | null; years: string | null; ord: number | null }>;
   candidate_signals: Array<{ type: string; note: string }>;
   candidate_tags: Array<{ axis: string; value: string }>;
@@ -94,6 +96,8 @@ function rowToCandidate(r: DbCandidate, idx: number): Candidate {
     moveReadiness: r.move_readiness,
     familyTravels: r.family_travels,
     childEducationRequired: r.child_education_required,
+    followUpAt: r.follow_up_at,
+    followUpEventId: r.follow_up_event_id,
     name: r.name,
     age: r.age ?? 0,
     current: currentParts.join(', '),
@@ -166,6 +170,8 @@ type DbClient = {
   status: string | null;
   hq_city: string | null;
   last_contact_at: string | null;
+  follow_up_at: string | null;
+  follow_up_event_id: string | null;
   notes: string | null;
   briefs:
     | Array<{
@@ -192,6 +198,8 @@ function rowToClient(r: DbClient): Client {
     hqCity: r.hq_city,
     lastContactAt: r.last_contact_at,
     notes: r.notes,
+    followUpAt: r.follow_up_at,
+    followUpEventId: r.follow_up_event_id,
     openBriefs: briefs.map(
       (b): ClientBrief => ({
         id: b.id,
@@ -214,7 +222,7 @@ export async function fetchClients(): Promise<Client[]> {
     .from('companies')
     .select(
       `
-      id, name, type, status, hq_city, last_contact_at, notes,
+      id, name, type, status, hq_city, last_contact_at, follow_up_at, follow_up_event_id, notes,
       briefs(id, role, city, hotel_name, opening_date, status,
         brief_shortlist(candidate_id))
     `,
@@ -252,6 +260,7 @@ export async function fetchCandidates(): Promise<Candidate[]> {
       belinda_rating, belinda_tier, quote, availability,
       current_location, open_to_locations, last_job_change_date,
       last_contact_at, move_readiness, family_travels, child_education_required,
+      follow_up_at, follow_up_event_id,
       candidate_experience(brand, role, years, ord),
       candidate_signals(type, note),
       candidate_tags(axis, value)
