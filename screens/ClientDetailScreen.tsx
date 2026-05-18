@@ -5,6 +5,7 @@ import type { Theme } from '@/lib/theme';
 import type { Candidate, Client } from '@/lib/data';
 import { Divider } from '@/components/Shared';
 import { FollowUpDialog } from '@/components/FollowUpDialog';
+import { OUTLOOK_ENABLED } from '@/lib/flags';
 
 const TYPE_LABELS: Record<Client['type'], string> = {
   third_party_operator: 'Operator',
@@ -169,34 +170,36 @@ export function ClientDetailScreen({
           )}
         </div>
 
-        <button
-          onClick={() => setFollowUpOpen(true)}
-          style={{
-            marginTop: 14,
-            width: '100%',
-            background: 'transparent',
-            color: theme.goldLight,
-            border: `0.5px solid ${theme.gold}`,
-            borderRadius: 999,
-            padding: '11px 18px',
-            fontFamily: theme.sans,
-            fontSize: 11,
-            letterSpacing: 1.8,
-            textTransform: 'uppercase',
-            fontWeight: 500,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-            <rect x="1.5" y="3" width="11" height="9.5" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none" />
-            <path d="M4 1.5v2.5M10 1.5v2.5M1.5 6h11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-          </svg>
-          {client.followUpAt ? 'Reschedule follow-up' : 'Schedule follow-up'}
-        </button>
+        {OUTLOOK_ENABLED && (
+          <button
+            onClick={() => setFollowUpOpen(true)}
+            style={{
+              marginTop: 14,
+              width: '100%',
+              background: 'transparent',
+              color: theme.goldLight,
+              border: `0.5px solid ${theme.gold}`,
+              borderRadius: 999,
+              padding: '11px 18px',
+              fontFamily: theme.sans,
+              fontSize: 11,
+              letterSpacing: 1.8,
+              textTransform: 'uppercase',
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+              <rect x="1.5" y="3" width="11" height="9.5" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none" />
+              <path d="M4 1.5v2.5M10 1.5v2.5M1.5 6h11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            {client.followUpAt ? 'Reschedule follow-up' : 'Schedule follow-up'}
+          </button>
+        )}
 
         {client.notes && (
           <div

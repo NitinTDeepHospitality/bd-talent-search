@@ -5,6 +5,7 @@ import type { Theme, VoiceLevel } from '@/lib/theme';
 import { type Candidate, RESOURCES } from '@/lib/data';
 import { Divider, SerifStat, TierMark } from '@/components/Shared';
 import { FollowUpDialog } from '@/components/FollowUpDialog';
+import { OUTLOOK_ENABLED } from '@/lib/flags';
 
 const SIGNALS: Array<{ k: keyof Candidate['signals']; label: string }> = [
   { k: 'wordOnStreet', label: 'Word on the street' },
@@ -412,7 +413,7 @@ export function DetailScreen({
           </button>
         )}
 
-        {c.dbId && (
+        {OUTLOOK_ENABLED && c.dbId && (
           <button
             onClick={() => setFollowUpOpen(true)}
             style={{
