@@ -5,6 +5,38 @@ import 'server-only';
 import { supabaseServer } from './server';
 import type { Candidate, Opportunity } from '@/lib/data';
 
+export type Todo = {
+  id: string;
+  label: string;
+  detail: string | null;
+  due_at: string | null;
+  completed: boolean;
+  completed_at: string | null;
+  capture_id: string | null;
+  candidate_id: string | null;
+  company_id: string | null;
+  brief_id: string | null;
+  created_at: string;
+};
+
+export async function fetchTodos(opts: { includeCompleted?: boolean } = {}): Promise<Todo[]> {
+  const sb = supabaseServer();
+  let q = sb
+    .from('todos')
+    .select('id, label, detail, due_at, completed, completed_at, capture_id, candidate_id, company_id, brief_id, created_at')
+    .order('completed', { ascending: true })
+    // Nulls last on due_at so dated todos float to the top.
+    .order('due_at', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (!opts.includeCompleted) {
+    q = q.eq('completed', false);
+  }
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as unknown as Todo[]) ?? [];
+}
+
 type DbCandidate = {
   id: string;
   name: string;

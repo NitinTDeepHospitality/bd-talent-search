@@ -9,19 +9,23 @@ import { anthropic, CLAUDE_MODEL } from '@/lib/anthropic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const SYSTEM_PROMPT = `You are Belinda's capture assistant. Belinda just walked out of a meeting and dictates what she heard. Your job is to extract structured rows from her voice memo so she can save them into her BD brain.
+const SYSTEM_PROMPT = `You are Belinda's capture assistant. Belinda just walked out of a meeting and dictates what she heard. Your job is to turn her memo into THREE things she can use:
 
-There are four extraction types:
-- BRIEF — a new role to fill ("Faena Lisbon is opening 2027 and wants a pre-opening GM")
-- CONTACT — a person to remember ("the asset manager is Tomas Cardoso")
-- TAG — a candidate fact ("Sophie speaks fluent Mandarin", "Alessandra would relocate to Madrid")
-- OPPORTUNITY — a BD signal ("Rocco Forte's new build in Tuscany broke ground")
+1. EXTRACTED ROWS — structured records to save into her BD brain:
+   - brief — a new role to fill ("Faena Lisbon is opening 2027 and wants a pre-opening GM")
+   - contact — a person to remember ("the asset manager is Tomas Cardoso")
+   - tag — a candidate fact ("Sophie speaks fluent Mandarin", "Alessandra would relocate to Madrid")
+   - opportunity — a BD signal ("Rocco Forte's new build in Tuscany broke ground")
+   Each has \`type\`, \`label\` (one short line, ≤80 chars), \`detail\` (supporting context, ≤200 chars).
 
-Each row has \`type\`, \`label\` (one short line, ≤80 chars, what Belinda would scan), and \`detail\` (the supporting context from the memo, ≤200 chars).
+2. HIGHLIGHTS — the few things from this meeting Belinda would want to remember tomorrow. Each is a single short sentence, ≤120 chars, in her register (terse, knowing). 0–5 highlights. Not a summary of the meeting — the *standout* moments only.
 
-Be aggressive about extraction. If she mentions a name, a date, a number, a hotel — it's almost certainly worth a row. Don't paraphrase her words; pull them out cleanly.
+3. TODOS — action items Belinda needs to chase. Each has:
+   - \`label\` (the action, imperative voice, ≤80 chars: "Email Stefan with two candidate names by Thursday")
+   - \`due_hint\` (free-form, only if she mentioned timing: "this week", "before the holidays", "Thursday")
+   Pull aggressively. If she says "I need to" or "I should" or implies follow-up, that's a todo. 0–8 todos.
 
-If the memo is short or there's nothing structured to extract, return an empty \`extracted\` array.`;
+Be aggressive but accurate. Don't invent. If a section has nothing, return an empty array for that key. If the memo is too thin for anything structured, return all empty arrays.`;
 
 const RESPONSE_SCHEMA = {
   type: 'object',
@@ -42,10 +46,31 @@ const RESPONSE_SCHEMA = {
         additionalProperties: false,
       },
     },
+    highlights: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+    todos: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          label: { type: 'string' },
+          due_hint: { type: ['string', 'null'] },
+        },
+        required: ['label', 'due_hint'],
+        additionalProperties: false,
+      },
+    },
   },
-  required: ['extracted'],
+  required: ['extracted', 'highlights', 'todos'],
   additionalProperties: false,
 } as const;
+
+export type ExtractedTodo = {
+  label: string;
+  due_hint: string | null;
+};
 
 export type ExtractCaptureResponse = {
   extracted: Array<{
@@ -53,6 +78,8 @@ export type ExtractCaptureResponse = {
     label: string;
     detail: string;
   }>;
+  highlights: string[];
+  todos: ExtractedTodo[];
 };
 
 export async function POST(request: Request) {

@@ -6,21 +6,44 @@ import { QUICK_CAPTURE_SAMPLE } from '@/lib/data';
 import { Divider, ListeningDots } from '@/components/Shared';
 import { PreviewBadge } from '@/components/PreviewBadge';
 import { startRecording, transcribe, type RecorderController } from '@/lib/recorder';
-import { extractCapture, type ExtractedRow } from '@/lib/api';
+import {
+  extractCapture,
+  saveCapture,
+  type ExtractedRow,
+  type ExtractedTodo,
+} from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
-type Phase = 'idle' | 'recording' | 'transcribing' | 'extracting' | 'structured';
+type Phase =
+  | 'idle'
+  | 'recording'
+  | 'transcribing'
+  | 'extracting'
+  | 'structured'
+  | 'saving';
 
 export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () => void }) {
+  const router = useRouter();
   const [phase, setPhase] = useState<Phase>('idle');
   const [transcript, setTranscript] = useState('');
   const [extracted, setExtracted] = useState<ExtractedRow[] | null>(null);
+  const [highlights, setHighlights] = useState<string[]>([]);
+  const [todos, setTodos] = useState<ExtractedTodo[]>([]);
+  const [saveNote, setSaveNote] = useState<string | null>(null);
   const recorderRef = useRef<RecorderController | null>(null);
   // Demo fallback so the structured panel never renders empty in dev.
   const sample = QUICK_CAPTURE_SAMPLE;
 
-  const start = async () => {
+  const reset = () => {
     setTranscript('');
     setExtracted(null);
+    setHighlights([]);
+    setTodos([]);
+    setSaveNote(null);
+  };
+
+  const start = async () => {
+    reset();
     try {
       recorderRef.current = await startRecording();
       setPhase('recording');
@@ -50,15 +73,48 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
 
     setPhase('extracting');
     try {
-      const rows = await extractCapture(text);
-      setExtracted(rows);
+      const result = await extractCapture(text);
+      setExtracted(result.extracted);
+      setHighlights(result.highlights ?? []);
+      setTodos(result.todos ?? []);
     } catch (e) {
       console.error('[BD] extract-capture failed:', e);
       setExtracted([]);
+      setHighlights([]);
+      setTodos([]);
     } finally {
       setPhase('structured');
     }
   };
+
+  const save = async () => {
+    if (!transcript.trim() || transcript.startsWith('—')) return;
+    setPhase('saving');
+    setSaveNote(null);
+    try {
+      const r = await saveCapture({
+        transcript,
+        extracted: extracted ?? [],
+        highlights,
+        todos,
+      });
+      const todoCount = r.todo_ids.length;
+      setSaveNote(
+        todoCount > 0
+          ? `Saved · ${todoCount} task${todoCount === 1 ? '' : 's'} added`
+          : 'Saved to BD brain',
+      );
+      router.refresh();
+    } catch (e) {
+      console.error('[BD] save-capture failed:', e);
+      setSaveNote('Save failed — try again.');
+    } finally {
+      setPhase('structured');
+    }
+  };
+
+  const removeTodo = (idx: number) =>
+    setTodos((ts) => ts.filter((_, i) => i !== idx));
 
   return (
     <div
@@ -107,7 +163,7 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
             >
               Quick capture
             </div>
-            <PreviewBadge theme={theme} status="coming-soon" note="save not yet active" />
+            <PreviewBadge theme={theme} status="real" note="recording → highlights → todos" />
           </div>
           <div
             style={{
@@ -230,7 +286,7 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
           </div>
         )}
 
-        {phase === 'structured' && (
+        {(phase === 'structured' || phase === 'saving') && (
           <div>
             <div
               style={{
@@ -264,6 +320,116 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
                 &ldquo;{transcript || sample.raw}&rdquo;
               </div>
             </div>
+
+            {highlights.length > 0 && (
+              <>
+                <Divider theme={theme} label="Highlights" />
+                <div
+                  style={{
+                    marginTop: 14,
+                    marginBottom: 22,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  {highlights.map((h, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        gap: 10,
+                        padding: '10px 14px',
+                        background: 'rgba(245,239,230,0.04)',
+                        border: `0.5px solid ${theme.lineDark}`,
+                        borderRadius: 10,
+                        fontFamily: theme.serif,
+                        fontSize: 13,
+                        fontStyle: 'italic',
+                        color: theme.paper,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      <span style={{ color: theme.gold, flexShrink: 0 }}>★</span>
+                      <span>{h}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {todos.length > 0 && (
+              <>
+                <Divider theme={theme} label="To do" />
+                <div
+                  style={{
+                    marginTop: 14,
+                    marginBottom: 22,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  {todos.map((t, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        gap: 10,
+                        padding: '10px 14px',
+                        background: 'rgba(184,150,107,0.06)',
+                        border: `0.5px solid ${theme.line}`,
+                        borderRadius: 10,
+                        alignItems: 'flex-start',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 16,
+                          height: 16,
+                          marginTop: 2,
+                          borderRadius: 4,
+                          border: `1px solid ${theme.gold}`,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1, fontSize: 13, color: theme.paper, lineHeight: 1.4 }}>
+                        <div>{t.label}</div>
+                        {t.due_hint && (
+                          <div
+                            style={{
+                              fontSize: 10,
+                              color: theme.goldLight,
+                              marginTop: 3,
+                              letterSpacing: 0.5,
+                              textTransform: 'lowercase',
+                            }}
+                          >
+                            due {t.due_hint}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => removeTodo(i)}
+                        aria-label="remove"
+                        style={{
+                          width: 22,
+                          height: 22,
+                          background: 'transparent',
+                          color: theme.muted,
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: 16,
+                          lineHeight: 1,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             <Divider theme={theme} label="Structured" />
             <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -329,23 +495,39 @@ export function CaptureScreen({ theme, onClose }: { theme: Theme; onClose: () =>
             </div>
 
             <button
+              onClick={save}
+              disabled={phase === 'saving' || !transcript || transcript.startsWith('—')}
               style={{
                 marginTop: 24,
                 width: '100%',
                 padding: '14px',
-                background: theme.gold,
-                color: theme.bg,
+                background: phase === 'saving' ? 'rgba(184,150,107,0.25)' : theme.gold,
+                color: phase === 'saving' ? theme.muted : theme.bg,
                 border: 'none',
                 borderRadius: 999,
                 fontSize: 11,
                 letterSpacing: 2,
                 textTransform: 'uppercase',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: phase === 'saving' ? 'wait' : 'pointer',
               }}
             >
-              Save to BD brain
+              {phase === 'saving' ? 'Saving…' : 'Save to BD brain'}
             </button>
+            {saveNote && (
+              <div
+                style={{
+                  marginTop: 10,
+                  fontSize: 11,
+                  color: theme.goldLight,
+                  fontFamily: theme.serif,
+                  fontStyle: 'italic',
+                  textAlign: 'center',
+                }}
+              >
+                {saveNote}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -17,6 +17,8 @@ import { DetailScreen } from '@/screens/DetailScreen';
 import { MatchScreen } from '@/screens/MatchScreen';
 import { BelindaChat } from '@/screens/BelindaChat';
 import { AddCandidate } from '@/screens/AddCandidate';
+import { TasksScreen } from '@/screens/TasksScreen';
+import type { SavedTodo } from '@/lib/api';
 
 const TWEAK_DEFAULTS: Tweaks = {
   theme: 'editorial',
@@ -32,6 +34,7 @@ type Route =
   | { name: 'opps' }
   | { name: 'swipe' }
   | { name: 'add-candidate' }
+  | { name: 'tasks' }
   | { name: 'detail'; candidate: Candidate }
   | { name: 'match'; candidate: Candidate }
   | { name: 'chat'; candidate?: Candidate };
@@ -40,6 +43,7 @@ const NAV_ITEMS = [
   { id: 'home', label: 'Home' },
   { id: 'voice', label: 'Voice' },
   { id: 'capture', label: 'Capture' },
+  { id: 'tasks', label: 'Tasks' },
   { id: 'opps', label: 'Opps' },
 ] as const;
 
@@ -57,12 +61,15 @@ const CAPTIONS: Record<string, string> = {
 export default function App({
   initialCandidates,
   initialOpportunities = [],
+  initialTodos = [],
 }: {
   initialCandidates: Candidate[];
   initialOpportunities?: Opportunity[];
+  initialTodos?: SavedTodo[];
 }) {
   const candidates = initialCandidates;
   const opportunities = initialOpportunities;
+  const todos = initialTodos;
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [route, setRoute] = useState<Route>({ name: 'home' });
@@ -186,6 +193,8 @@ export default function App({
         return <CaptureScreen theme={theme} onClose={goHome} />;
       case 'add-candidate':
         return <AddCandidate theme={theme} onClose={goHome} />;
+      case 'tasks':
+        return <TasksScreen theme={theme} todos={todos} onClose={goHome} />;
       case 'opps':
         return (
           <OpportunityScreen

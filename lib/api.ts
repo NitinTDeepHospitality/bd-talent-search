@@ -34,9 +34,20 @@ export type ExtractedRow = {
   detail: string;
 };
 
+export type ExtractedTodo = {
+  label: string;
+  due_hint: string | null;
+};
+
+export type ExtractCaptureResult = {
+  extracted: ExtractedRow[];
+  highlights: string[];
+  todos: ExtractedTodo[];
+};
+
 export async function extractCapture(
   transcript: string,
-): Promise<ExtractedRow[]> {
+): Promise<ExtractCaptureResult> {
   const r = await fetch('/api/extract-capture', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -46,8 +57,52 @@ export async function extractCapture(
     const detail = await r.text().catch(() => '');
     throw new Error(`extract-capture ${r.status}: ${detail.slice(0, 200)}`);
   }
-  const data = (await r.json()) as { extracted: ExtractedRow[] };
-  return data.extracted;
+  const data = (await r.json()) as ExtractCaptureResult;
+  return data;
+}
+
+export type SavedTodo = {
+  id: string;
+  label: string;
+  detail: string | null;
+  due_at: string | null;
+  completed: boolean;
+  completed_at: string | null;
+  capture_id: string | null;
+  candidate_id: string | null;
+  company_id: string | null;
+  brief_id: string | null;
+  created_at: string;
+};
+
+export async function saveCapture(payload: {
+  transcript: string;
+  extracted: ExtractedRow[];
+  highlights: string[];
+  todos: ExtractedTodo[];
+}): Promise<{ capture_id: string; todo_ids: string[] }> {
+  const r = await fetch('/api/captures', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`save-capture ${r.status}: ${detail.slice(0, 200)}`);
+  }
+  return (await r.json()) as { capture_id: string; todo_ids: string[] };
+}
+
+export async function completeTodo(id: string, completed: boolean): Promise<void> {
+  const r = await fetch(`/api/todos/${id}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ completed }),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`complete-todo ${r.status}: ${detail.slice(0, 200)}`);
+  }
 }
 
 export type RefreshOpportunitiesRegion =
