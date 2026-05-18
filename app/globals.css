@@ -108,8 +108,4 @@ textarea,
   [data-iphone-content] {
     padding-bottom: 56px !important;
   }
-  /* The home-screen dock duplicates the bottom nav on mobile — hide it. */
-  [data-home-dock] {
-    display: none !important;
-  }
 }
