@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Theme } from '@/lib/theme';
 import { ListeningDots } from '@/components/Shared';
@@ -9,14 +9,24 @@ import {
   startRecording,
   transcribe,
   type RecorderController,
+  type RecorderState,
 } from '@/lib/recorder';
 import {
   extractCandidate,
+  extractCandidateFromCV,
   saveCandidate,
   type ExtractedCandidate,
 } from '@/lib/api';
 
-type Phase = 'idle' | 'recording' | 'transcribing' | 'extracting' | 'review' | 'saving';
+type Phase =
+  | 'idle'
+  | 'requesting-mic'   // getUserMedia in flight
+  | 'recording'        // recording with audio
+  | 'silent'           // recording but no audio detected
+  | 'transcribing'
+  | 'extracting'
+  | 'review'
+  | 'saving';
 
 const TIER_LABELS: Record<'black_book' | 'inner_circle' | 'watching', string> = {
   black_book: 'Black Book',
@@ -53,6 +63,7 @@ function emptyCandidate(): ExtractedCandidate {
     belinda_rating: 0,
     availability: '',
     quote: '',
+    linkedin_url: '',
     signals: {
       word_on_street: '',
       chemistry: '',
@@ -76,16 +87,44 @@ export function AddCandidate({
   const [candidate, setCandidate] = useState<ExtractedCandidate>(emptyCandidate());
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<string | null>(null);
+  const [recordingSecs, setRecordingSecs] = useState(0);
+  const [audioLevel, setAudioLevel] = useState(0);
   const recorderRef = useRef<RecorderController | null>(null);
+  const cvInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Tick the recording-duration counter while the user holds the mic
+  // open. Resets to 0 every time we re-enter recording.
+  useEffect(() => {
+    if (phase !== 'recording' && phase !== 'silent') return;
+    const startedAt = Date.now() - recordingSecs * 1000;
+    const id = setInterval(() => {
+      setRecordingSecs(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   const beginRecord = async () => {
     setError(null);
     setConfirmed(null);
+    setRecordingSecs(0);
+    setAudioLevel(0);
+    setPhase('requesting-mic');
     try {
-      recorderRef.current = await startRecording();
-      setPhase('recording');
+      recorderRef.current = await startRecording({
+        onState: (s: RecorderState) => {
+          // Mirror the recorder's lifecycle into the UI so Belinda can
+          // see exactly what state we're in.
+          if (s === 'recording') setPhase('recording');
+          else if (s === 'silent') setPhase('silent');
+        },
+        onLevel: (l) => setAudioLevel(l),
+      });
     } catch {
-      setError('Mic permission denied. Allow microphone access and try again.');
+      setPhase('idle');
+      setError(
+        'Microphone permission denied. On iPad: Settings → Safari → Camera & Microphone → Allow.',
+      );
     }
   };
 
@@ -97,6 +136,11 @@ export function AddCandidate({
     let text = '';
     try {
       const blob = await ctrl.stop();
+      if (blob.size === 0) {
+        setError('No audio recorded. Try again — make sure your mic is unmuted.');
+        setPhase('idle');
+        return;
+      }
       text = await transcribe(blob);
       setTranscript(text);
     } catch (e) {
@@ -118,6 +162,34 @@ export function AddCandidate({
     } catch (e) {
       console.error('[BD] extract-candidate failed:', e);
       setError('Couldn’t extract the candidate. Try recording again.');
+      setPhase('idle');
+    }
+  };
+
+  const uploadCV = async (file: File) => {
+    setError(null);
+    setConfirmed(null);
+    setTranscript(`Uploaded CV: ${file.name}`);
+    setPhase('extracting');
+    try {
+      const extracted = await extractCandidateFromCV(file);
+      setCandidate(extracted);
+      setPhase('review');
+      if (!extracted.name) {
+        setError(
+          'I couldn’t read a name off that CV. Edit below or try another file.',
+        );
+      }
+    } catch (e) {
+      console.error('[BD] extract-candidate-cv failed:', e);
+      const msg = e instanceof Error ? e.message : 'unknown error';
+      setError(
+        msg.includes('413')
+          ? 'CV file too large (max 8MB).'
+          : msg.includes('415')
+            ? 'Only PDF CVs supported for now.'
+            : 'Couldn’t read that CV. Try another file or use the voice flow.',
+      );
       setPhase('idle');
     }
   };
@@ -304,36 +376,170 @@ export function AddCandidate({
             >
               Tap to record
             </div>
+
+            {/* "Or upload a CV" — alternate path when she has the candidate's
+                CV in email rather than dictating from memory. */}
+            <div
+              style={{
+                margin: '28px auto 0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                maxWidth: 240,
+              }}
+            >
+              <div style={{ flex: 1, height: 0.5, background: theme.lineDark }} />
+              <div
+                style={{
+                  fontSize: 9,
+                  letterSpacing: 2,
+                  color: theme.muted,
+                  textTransform: 'uppercase',
+                }}
+              >
+                or
+              </div>
+              <div style={{ flex: 1, height: 0.5, background: theme.lineDark }} />
+            </div>
+            <input
+              ref={cvInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) uploadCV(f);
+                // Reset so the same file can be picked again on retry.
+                e.target.value = '';
+              }}
+            />
+            <button
+              onClick={() => cvInputRef.current?.click()}
+              style={{
+                marginTop: 16,
+                padding: '10px 18px',
+                background: 'transparent',
+                color: theme.goldLight,
+                border: `0.5px solid ${theme.gold}`,
+                borderRadius: 999,
+                fontFamily: theme.sans,
+                fontSize: 11,
+                letterSpacing: 1.6,
+                textTransform: 'uppercase',
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                />
+                <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+              </svg>
+              Upload a CV (PDF)
+            </button>
           </div>
         )}
 
-        {phase === 'recording' && (
+        {phase === 'requesting-mic' && (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <ListeningDots theme={theme} label="Waiting for microphone permission" />
+            <div
+              style={{
+                marginTop: 16,
+                fontSize: 11,
+                color: theme.muted,
+                maxWidth: 280,
+                margin: '16px auto 0',
+                lineHeight: 1.45,
+              }}
+            >
+              Tap &ldquo;Allow&rdquo; on the permission prompt. If you don&rsquo;t see one,
+              check Settings → Safari → Camera &amp; Microphone.
+            </div>
+          </div>
+        )}
+
+        {(phase === 'recording' || phase === 'silent') && (
           <div>
+            {/* Live level meter — the bar heights scale with the input
+                audio level so Belinda can see the app is hearing her. */}
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'center',
                 gap: 4,
-                marginBottom: 24,
-                height: 40,
+                marginBottom: 16,
+                height: 56,
                 alignItems: 'flex-end',
               }}
             >
-              {Array.from({ length: 24 }).map((_, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: 3,
-                    background: theme.gold,
-                    borderRadius: 2,
-                    height: 8 + (i % 4) * 6,
-                    animation: `bdpulse 0.8s ${i * 0.06}s infinite ease-in-out`,
-                    opacity: 0.4 + (i % 3) * 0.2,
-                  }}
-                />
-              ))}
+              {Array.from({ length: 24 }).map((_, i) => {
+                // Mix the live level with a per-bar bias so the meter
+                // stays animated even at low signal, but reacts to loud
+                // input visibly.
+                const bias = 8 + (i % 4) * 5;
+                const live = Math.min(1, audioLevel * 6);
+                const reactive = bias + live * 40 * (0.6 + ((i * 7) % 5) / 10);
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      width: 4,
+                      borderRadius: 2,
+                      height: reactive,
+                      background:
+                        phase === 'silent'
+                          ? 'rgba(226,91,91,0.55)'
+                          : theme.gold,
+                      transition: 'height 0.1s linear, background 0.2s',
+                      opacity: 0.55 + ((i * 3) % 4) * 0.1,
+                    }}
+                  />
+                );
+              })}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+
+            <div
+              style={{
+                textAlign: 'center',
+                fontSize: 11,
+                letterSpacing: 1.6,
+                textTransform: 'uppercase',
+                color: phase === 'silent' ? '#f0a3a3' : theme.gold,
+                marginBottom: 4,
+                fontWeight: 600,
+              }}
+            >
+              {phase === 'silent' ? '● Recording — no audio' : '● Recording'}{' '}
+              <span style={{ color: theme.muted, fontWeight: 400, marginLeft: 6 }}>
+                {String(Math.floor(recordingSecs / 60)).padStart(1, '0')}:
+                {String(recordingSecs % 60).padStart(2, '0')}
+              </span>
+            </div>
+
+            {phase === 'silent' && (
+              <div
+                style={{
+                  textAlign: 'center',
+                  fontSize: 11,
+                  color: theme.muted,
+                  marginBottom: 18,
+                  fontStyle: 'italic',
+                  fontFamily: theme.serif,
+                }}
+              >
+                Check the mic on your iPad isn&rsquo;t muted, then keep talking.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
               <button
                 onClick={endRecord}
                 style={{
@@ -582,6 +788,15 @@ function ReviewForm({
         value={candidate.availability}
         onChange={(e) => onChange({ availability: e.target.value })}
         placeholder="Quietly looking"
+      />
+
+      <div style={labelStyle}>LinkedIn URL</div>
+      <input
+        style={inputStyle}
+        type="url"
+        value={candidate.linkedin_url}
+        onChange={(e) => onChange({ linkedin_url: e.target.value })}
+        placeholder="https://linkedin.com/in/…"
       />
 
       <div style={{ ...labelStyle, marginTop: 24, color: theme.gold }}>Mobility &amp; recency</div>

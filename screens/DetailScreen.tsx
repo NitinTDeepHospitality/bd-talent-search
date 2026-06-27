@@ -46,7 +46,11 @@ function MobilityBlock({ theme, c }: { theme: Theme; c: Candidate }) {
   if (c.familyTravels === true) rows.push({ label: 'Family', value: 'Travels with' });
   if (c.childEducationRequired === true) rows.push({ label: 'Schools', value: 'Required for kids' });
 
-  if (rows.length === 0) return null;
+  // The LinkedIn link is rendered as its own row so the URL stays clickable
+  // (an italic-serif value column would mangle URL underlining + tap area).
+  const hasLinkedIn = Boolean(c.linkedinUrl);
+
+  if (rows.length === 0 && !hasLinkedIn) return null;
 
   return (
     <div>
@@ -81,6 +85,57 @@ function MobilityBlock({ theme, c }: { theme: Theme; c: Candidate }) {
             </div>
           </div>
         ))}
+        {hasLinkedIn && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              fontSize: 13,
+              color: theme.paper,
+              marginTop: 2,
+            }}
+          >
+            <div
+              style={{
+                width: 92,
+                flexShrink: 0,
+                fontSize: 9,
+                letterSpacing: 1.5,
+                textTransform: 'uppercase',
+                color: theme.muted,
+                fontWeight: 500,
+              }}
+            >
+              LinkedIn
+            </div>
+            <a
+              href={c.linkedinUrl!}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                flex: 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                color: theme.goldLight,
+                fontFamily: theme.sans,
+                fontSize: 12,
+                textDecoration: 'none',
+                padding: '6px 12px',
+                background: 'rgba(184,150,107,0.08)',
+                border: `0.5px solid ${theme.line}`,
+                borderRadius: 8,
+                width: 'fit-content',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.95v5.66H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.59 0 4.26 2.36 4.26 5.43v6.31zM5.34 7.43a2.06 2.06 0 110-4.12 2.06 2.06 0 010 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45C23.21 24 24 23.23 24 22.28V1.72C24 .77 23.21 0 22.22 0z"/>
+              </svg>
+              Open profile
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

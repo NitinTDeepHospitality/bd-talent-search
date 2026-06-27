@@ -297,6 +297,9 @@ export function HomeScreen({
           padding: 20,
         }}
       >
+        {/* Belinda was conflating this mic with "+ Add a candidate" — the
+            old prompt was too open-ended. Explicit verbs ("find" / "search")
+            cue this is for querying her existing network, not adding to it. */}
         <div
           style={{
             fontFamily: theme.display,
@@ -305,11 +308,25 @@ export function HomeScreen({
             color: theme.goldLight,
             textAlign: 'center',
             lineHeight: 1.25,
-            maxWidth: 280,
-            marginBottom: 36,
+            maxWidth: 300,
+            marginBottom: 8,
           }}
         >
-          What can I help you find today?
+          Looking for someone in your network?
+        </div>
+        <div
+          style={{
+            fontFamily: theme.sans,
+            fontSize: 10.5,
+            color: theme.muted,
+            textAlign: 'center',
+            letterSpacing: 0.4,
+            marginBottom: 28,
+            maxWidth: 280,
+          }}
+        >
+          Speak a brief — name, role, languages — and the app pulls candidates
+          who fit. To add a new candidate, use the gold button at the top.
         </div>
 
         <button

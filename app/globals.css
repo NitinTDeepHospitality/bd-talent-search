@@ -48,13 +48,17 @@ textarea,
 }
 
 /*
- * Mobile shell — under 700px we strip the desktop "iPhone mockup on a
- * marketing page" framing and let the screens fill the viewport. The iOS
- * status bar inside each screen stays (it's part of the visual design and
- * keeps headers from running into the real notch). The nav pills get
- * re-anchored as a fixed bottom bar so all screens remain reachable.
+ * Mobile + tablet shell — under 1100px we strip the desktop "iPhone
+ * mockup on a marketing page" framing and let the screens fill the
+ * viewport. This covers phones (Belinda's eventual device) AND iPads
+ * (her current device — landscape iPad Pro is 1366px so we stop just
+ * short of that, where the desktop showcase legitimately starts making
+ * sense again). The iOS status bar inside each screen stays (it's part
+ * of the visual design and keeps headers from running into the real
+ * notch). The nav pills get re-anchored as a fixed bottom bar so all
+ * screens remain reachable.
  */
-@media (max-width: 700px) {
+@media (max-width: 1100px) {
   [data-app-shell] {
     padding: 0 !important;
   }

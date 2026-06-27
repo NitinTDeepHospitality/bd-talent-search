@@ -157,6 +157,10 @@ export type ExtractedCandidate = {
   belinda_rating: number;
   availability: string;
   quote: string;
+  // Phase 5 — set by the review form when Belinda pastes a profile URL,
+  // or by /api/extract-candidate-cv when reading a CV PDF. The voice
+  // extract leaves this as ''.
+  linkedin_url: string;
   signals: {
     word_on_street: string;
     chemistry: string;
@@ -179,7 +183,31 @@ export async function extractCandidate(
     throw new Error(`extract-candidate ${r.status}: ${detail.slice(0, 200)}`);
   }
   const data = (await r.json()) as { candidate: ExtractedCandidate };
-  return data.candidate;
+  // Voice route doesn't include linkedin_url in its schema. Fill the
+  // default so the review form has a string to bind against.
+  return { ...data.candidate, linkedin_url: data.candidate.linkedin_url ?? '' };
+}
+
+/**
+ * Send a CV file (PDF, preferred) to the server. Claude reads the
+ * document directly and returns the same structured shape as the voice
+ * route, so the review form is reusable.
+ */
+export async function extractCandidateFromCV(
+  file: File,
+): Promise<ExtractedCandidate> {
+  const fd = new FormData();
+  fd.append('cv', file);
+  const r = await fetch('/api/extract-candidate-cv', {
+    method: 'POST',
+    body: fd,
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`extract-candidate-cv ${r.status}: ${detail.slice(0, 200)}`);
+  }
+  const data = (await r.json()) as { candidate: ExtractedCandidate };
+  return { ...data.candidate, linkedin_url: data.candidate.linkedin_url ?? '' };
 }
 
 export async function saveCandidate(

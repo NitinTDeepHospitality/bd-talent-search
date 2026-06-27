@@ -55,6 +55,10 @@ export type Candidate = {
   // Phase 4 — Outlook follow-up scheduling
   followUpAt?: string | null;
   followUpEventId?: string | null;
+  // Phase 5 — LinkedIn link, surfaced on detail. NULL when she hasn't
+  // pasted one yet; once set, the detail screen renders a button that
+  // opens the profile in a new tab.
+  linkedinUrl?: string | null;
 };
 
 export const CANDIDATES: Candidate[] = [

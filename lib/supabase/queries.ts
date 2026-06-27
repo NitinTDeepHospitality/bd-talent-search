@@ -63,6 +63,7 @@ type DbCandidate = {
   child_education_required: boolean | null;
   follow_up_at: string | null;
   follow_up_event_id: string | null;
+  linkedin_url: string | null;
   candidate_experience: Array<{ brand: string; role: string | null; years: string | null; ord: number | null }>;
   candidate_signals: Array<{ type: string; note: string }>;
   candidate_tags: Array<{ axis: string; value: string }>;
@@ -98,6 +99,7 @@ function rowToCandidate(r: DbCandidate, idx: number): Candidate {
     childEducationRequired: r.child_education_required,
     followUpAt: r.follow_up_at,
     followUpEventId: r.follow_up_event_id,
+    linkedinUrl: r.linkedin_url,
     name: r.name,
     age: r.age ?? 0,
     current: currentParts.join(', '),
@@ -260,7 +262,7 @@ export async function fetchCandidates(): Promise<Candidate[]> {
       belinda_rating, belinda_tier, quote, availability,
       current_location, open_to_locations, last_job_change_date,
       last_contact_at, move_readiness, family_travels, child_education_required,
-      follow_up_at, follow_up_event_id,
+      follow_up_at, follow_up_event_id, linkedin_url,
       candidate_experience(brand, role, years, ord),
       candidate_signals(type, note),
       candidate_tags(axis, value)

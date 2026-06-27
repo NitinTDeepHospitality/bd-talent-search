@@ -28,6 +28,7 @@ type IncomingBody = {
   belinda_rating?: number | null;
   availability?: string | null;
   quote?: string | null;
+  linkedin_url?: string | null;
   signals?: {
     word_on_street?: IncomingSignal;
     chemistry?: IncomingSignal;
@@ -89,6 +90,7 @@ export async function POST(request: Request) {
       belinda_rating: zeroToNull(body.belinda_rating),
       availability: blankToNull(body.availability),
       quote: blankToNull(body.quote),
+      linkedin_url: blankToNull(body.linkedin_url),
       consent_status: 'unknown' as const,
     })
     .select('id')
