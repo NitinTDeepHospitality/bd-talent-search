@@ -225,6 +225,26 @@ export async function saveCandidate(
   return (await r.json()) as { id: string; name: string };
 }
 
+/**
+ * Toggle the watchlist flag on a candidate. Caller does the optimistic
+ * UI update; this function only rejects on network/server failure so the
+ * caller can roll back.
+ */
+export async function setCandidateWatched(
+  dbId: string,
+  watched: boolean,
+): Promise<void> {
+  const r = await fetch(`/api/candidates/${encodeURIComponent(dbId)}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ is_watched: watched }),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`set-watched ${r.status}: ${detail.slice(0, 200)}`);
+  }
+}
+
 export type ExtractedClient = {
   name: string | null;
   type:

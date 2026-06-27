@@ -256,14 +256,49 @@ export function ClientDetailScreen({
                 >
                   <div
                     style={{
-                      fontFamily: theme.display,
-                      fontSize: 16,
-                      color: theme.paper,
-                      fontWeight: 400,
-                      lineHeight: 1.2,
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      gap: 8,
+                      flexWrap: 'wrap',
                     }}
                   >
-                    {b.role}
+                    <div
+                      style={{
+                        fontFamily: theme.display,
+                        fontSize: 16,
+                        color: theme.paper,
+                        fontWeight: 400,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {b.role}
+                    </div>
+                    {b.isInterim && (
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          background: 'rgba(184,150,107,0.18)',
+                          border: `0.5px solid ${theme.gold}`,
+                          fontSize: 8.5,
+                          letterSpacing: 1.4,
+                          textTransform: 'uppercase',
+                          color: theme.goldLight,
+                          fontWeight: 600,
+                          fontFamily: theme.sans,
+                        }}
+                      >
+                        Interim
+                        {b.interimDuration && (
+                          <span style={{ opacity: 0.7, fontWeight: 400 }}>
+                            · {b.interimDuration}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div
                     style={{

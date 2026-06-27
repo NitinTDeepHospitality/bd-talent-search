@@ -128,6 +128,8 @@ export function HomeScreen({
   onOpps,
   onSwipe,
   onAddCandidate,
+  onWatchlist,
+  watchedCount = 0,
 }: {
   theme: Theme;
   onVoice?: (q: VoiceQuery) => void;
@@ -135,6 +137,9 @@ export function HomeScreen({
   onOpps?: () => void;
   onSwipe?: () => void;
   onAddCandidate?: () => void;
+  onWatchlist?: () => void;
+  /** Count of candidates with isWatched=true; shown as a dock-button badge. */
+  watchedCount?: number;
 }) {
   const [pulse, setPulse] = useState(false);
   const recorderRef = useRef<RecorderController | null>(null);
@@ -470,6 +475,19 @@ export function HomeScreen({
             </svg>
           }
         />
+        {onWatchlist && (
+          <DockBtn
+            theme={theme}
+            label="Watchlist"
+            onClick={onWatchlist}
+            badge={watchedCount > 0 ? String(watchedCount) : undefined}
+            icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M12 2.5l2.95 6.6 7.05.8-5.3 4.85 1.5 7.25L12 18.4l-6.2 3.6 1.5-7.25L2 9.9l7.05-.8L12 2.5z" />
+              </svg>
+            }
+          />
+        )}
       </div>
     </div>
   );

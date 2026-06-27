@@ -21,6 +21,7 @@ import { TasksScreen } from '@/screens/TasksScreen';
 import { ClientsScreen } from '@/screens/ClientsScreen';
 import { ClientDetailScreen } from '@/screens/ClientDetailScreen';
 import { AddClient } from '@/screens/AddClient';
+import { WatchlistScreen } from '@/screens/WatchlistScreen';
 import type { SavedTodo } from '@/lib/api';
 
 const TWEAK_DEFAULTS: Tweaks = {
@@ -40,6 +41,7 @@ type Route =
   | { name: 'tasks' }
   | { name: 'clients' }
   | { name: 'add-client' }
+  | { name: 'watchlist' }
   | { name: 'client-detail'; client: Client }
   | { name: 'detail'; candidate: Candidate }
   | { name: 'match'; candidate: Candidate }
@@ -182,6 +184,8 @@ export default function App({
             onOpps={() => setRoute({ name: 'opps' })}
             onSwipe={() => setRoute({ name: 'swipe' })}
             onAddCandidate={() => setRoute({ name: 'add-candidate' })}
+            onWatchlist={() => setRoute({ name: 'watchlist' })}
+            watchedCount={candidates.filter((c) => c.isWatched).length}
           />
         );
       case 'voice':
@@ -227,6 +231,15 @@ export default function App({
         );
       case 'add-client':
         return <AddClient theme={theme} onClose={() => setRoute({ name: 'clients' })} />;
+      case 'watchlist':
+        return (
+          <WatchlistScreen
+            theme={theme}
+            candidates={candidates}
+            onClose={goHome}
+            onOpenCandidate={openDetail}
+          />
+        );
       case 'opps':
         return (
           <OpportunityScreen

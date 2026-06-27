@@ -59,6 +59,11 @@ export type Candidate = {
   // pasted one yet; once set, the detail screen renders a button that
   // opens the profile in a new tab.
   linkedinUrl?: string | null;
+  // Phase 5a — watchlist. Belinda's "golden list" of candidates she keeps
+  // a close eye on, distinct from belindaTier (which is curation level).
+  // When LinkedIn change-detection ships, only watched candidates get
+  // polled.
+  isWatched?: boolean;
 };
 
 export const CANDIDATES: Candidate[] = [
@@ -329,6 +334,10 @@ export type ClientBrief = {
   openingDate: string | null;
   status: string;
   shortlistedCandidateIds: string[];
+  // Phase 5a — interim engagement marker. Belinda's GCC/Asia work often
+  // pulls in short-tenure GMs (12–18 months) at premium daily rates.
+  isInterim?: boolean;
+  interimDuration?: string | null;
 };
 
 export type Client = {

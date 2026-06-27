@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Theme, VoiceLevel } from '@/lib/theme';
 import { type Candidate, RESOURCES } from '@/lib/data';
 import { Divider, SerifStat, TierMark } from '@/components/Shared';
 import { FollowUpDialog } from '@/components/FollowUpDialog';
 import { OUTLOOK_ENABLED } from '@/lib/flags';
+import { setCandidateWatched } from '@/lib/api';
 
 const SIGNALS: Array<{ k: keyof Candidate['signals']; label: string }> = [
   { k: 'wordOnStreet', label: 'Word on the street' },
@@ -157,8 +159,30 @@ export function DetailScreen({
   onAsk: () => void;
 }) {
   const c = candidate;
+  const router = useRouter();
   const signals = SIGNALS.slice(0, voice.signalCount);
   const [followUpOpen, setFollowUpOpen] = useState(false);
+  // Optimistic Watch toggle: flip the local star immediately, then PATCH
+  // the server in the background. If the server rejects, revert.
+  const [watched, setWatched] = useState(Boolean(c.isWatched));
+  const [watchPending, setWatchPending] = useState(false);
+  const toggleWatch = async () => {
+    if (!c.dbId || watchPending) return;
+    const next = !watched;
+    setWatched(next);
+    setWatchPending(true);
+    try {
+      await setCandidateWatched(c.dbId, next);
+      // Refresh server data so the Watchlist screen reflects the change
+      // on next navigation without a hard reload.
+      router.refresh();
+    } catch (e) {
+      console.error('[BD] watch toggle failed:', e);
+      setWatched(!next);
+    } finally {
+      setWatchPending(false);
+    }
+  };
 
   return (
     <div
@@ -213,8 +237,49 @@ export function DetailScreen({
             </svg>
           </button>
         </div>
-        <div style={{ position: 'absolute', top: 66, right: 20 }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: 58,
+            right: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
           <TierMark theme={theme} tier={c.belindaTier} />
+          {c.dbId && (
+            <button
+              onClick={toggleWatch}
+              disabled={watchPending}
+              aria-label={watched ? 'Stop watching this candidate' : 'Watch this candidate'}
+              title={
+                watched
+                  ? 'Watching — tap to unwatch'
+                  : 'Add to your golden list — get changes surfaced'
+              }
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                background: watched ? theme.gold : 'rgba(14,12,10,0.55)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                border: `0.5px solid ${watched ? theme.gold : theme.line}`,
+                color: watched ? theme.bg : theme.paper,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: watchPending ? 'wait' : 'pointer',
+                transition: 'background 0.2s, color 0.2s',
+              }}
+            >
+              {/* Star, filled when watched */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill={watched ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
+                <path d="M12 2.5l2.95 6.6 7.05.8-5.3 4.85 1.5 7.25L12 18.4l-6.2 3.6 1.5-7.25L2 9.9l7.05-.8L12 2.5z" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
         </div>
 
         <div style={{ position: 'absolute', left: 24, right: 24, bottom: 24 }}>
