@@ -128,8 +128,13 @@ export function HomeScreen({
   onOpps,
   onSwipe,
   onAddCandidate,
+  onCandidates,
   onWatchlist,
   watchedCount = 0,
+  activeBriefsCount = 0,
+  openOppsCount = 0,
+  openTodosCount = 0,
+  recentQueries = [],
 }: {
   theme: Theme;
   onVoice?: (q: VoiceQuery) => void;
@@ -137,9 +142,18 @@ export function HomeScreen({
   onOpps?: () => void;
   onSwipe?: () => void;
   onAddCandidate?: () => void;
+  onCandidates?: () => void;
   onWatchlist?: () => void;
   /** Count of candidates with isWatched=true; shown as a dock-button badge. */
   watchedCount?: number;
+  /** Active briefs across all clients (status != 'placed'|'closed'). */
+  activeBriefsCount?: number;
+  /** Opportunities still in 'new' status (not yet reviewed/sent). */
+  openOppsCount?: number;
+  /** Todos not yet completed. */
+  openTodosCount?: number;
+  /** Past voice queries — empty array hides the "Recent" section. */
+  recentQueries?: string[];
 }) {
   const [pulse, setPulse] = useState(false);
   const recorderRef = useRef<RecorderController | null>(null);
@@ -286,9 +300,9 @@ export function HomeScreen({
           Today
         </div>
         <div style={{ display: 'flex', gap: 18 }}>
-          <Stat theme={theme} v="3" l="active briefs" />
-          <Stat theme={theme} v="2" l="new openings" />
-          <Stat theme={theme} v="7" l="follow-ups" />
+          <Stat theme={theme} v={String(activeBriefsCount)} l="active briefs" />
+          <Stat theme={theme} v={String(openOppsCount)} l="new openings" />
+          <Stat theme={theme} v={String(openTodosCount)} l="follow-ups" />
         </div>
       </div>
 
@@ -377,55 +391,53 @@ export function HomeScreen({
           Hold to speak
         </div>
 
-        <div
-          style={{
-            marginTop: 32,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-            width: '100%',
-          }}
-        >
+        {recentQueries.length > 0 && (
           <div
             style={{
-              fontSize: 9,
-              letterSpacing: 2,
-              color: theme.muted,
-              textTransform: 'uppercase',
-              marginBottom: 4,
+              marginTop: 32,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              width: '100%',
             }}
           >
-            Recent
-          </div>
-          {[
-            'Five GMs for Faena Mediterranean',
-            'Who fits the Lisbon brief?',
-            'Anyone moved at Maybourne lately?',
-          ].map((q, i) => (
-            <button
-              key={i}
-              onClick={() => onVoice?.({ text: q })}
+            <div
               style={{
-                padding: '12px 14px',
-                borderRadius: 10,
-                background: 'rgba(245,239,230,0.04)',
-                border: `0.5px solid ${theme.lineDark}`,
-                color: theme.paper,
-                textAlign: 'left',
-                fontFamily: theme.serif,
-                fontSize: 13,
-                fontStyle: 'italic',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
+                fontSize: 9,
+                letterSpacing: 2,
+                color: theme.muted,
+                textTransform: 'uppercase',
+                marginBottom: 4,
               }}
             >
-              <span style={{ color: theme.gold, fontSize: 11 }}>›</span>
-              {q}
-            </button>
-          ))}
-        </div>
+              Recent
+            </div>
+            {recentQueries.map((q, i) => (
+              <button
+                key={i}
+                onClick={() => onVoice?.({ text: q })}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: 10,
+                  background: 'rgba(245,239,230,0.04)',
+                  border: `0.5px solid ${theme.lineDark}`,
+                  color: theme.paper,
+                  textAlign: 'left',
+                  fontFamily: theme.serif,
+                  fontSize: 13,
+                  fontStyle: 'italic',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                <span style={{ color: theme.gold, fontSize: 11 }}>›</span>
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div
@@ -464,10 +476,12 @@ export function HomeScreen({
             </svg>
           }
         />
+        {/* Candidates list is the primary path; Shortlist (Tinder-style
+            swipe) is still reachable from the Tweaks panel for demos. */}
         <DockBtn
           theme={theme}
-          label="Shortlist"
-          onClick={onSwipe}
+          label="Candidates"
+          onClick={onCandidates ?? onSwipe}
           icon={
             <svg width="16" height="16" viewBox="0 0 16 16">
               <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none" />

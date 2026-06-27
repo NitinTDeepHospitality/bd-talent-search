@@ -12,6 +12,7 @@ import {
   type RecorderState,
 } from '@/lib/recorder';
 import {
+  CandidateDuplicateError,
   extractCandidate,
   extractCandidateFromCV,
   saveCandidate,
@@ -194,15 +195,20 @@ export function AddCandidate({
     }
   };
 
-  const save = async () => {
+  // Duplicate-detection state. When the server flags a duplicate we
+  // show a confirm panel above the form so Belinda can pick.
+  const [dupe, setDupe] = useState<CandidateDuplicateError['existing'] | null>(null);
+
+  const save = async (force = false) => {
     if (!candidate.name?.trim()) {
       setError('A name is required.');
       return;
     }
     setPhase('saving');
     setError(null);
+    setDupe(null);
     try {
-      const saved = await saveCandidate(candidate);
+      const saved = await saveCandidate(candidate, { force });
       setConfirmed(saved.name);
       router.refresh();
       // Reset for the next add — keep the flow rapid.
@@ -210,6 +216,11 @@ export function AddCandidate({
       setTranscript('');
       setPhase('idle');
     } catch (e) {
+      if (e instanceof CandidateDuplicateError) {
+        setDupe(e.existing);
+        setPhase('review');
+        return;
+      }
       console.error('[BD] save-candidate failed:', e);
       setError('Save failed. Try again.');
       setPhase('review');
@@ -570,6 +581,80 @@ export function AddCandidate({
           </div>
         )}
 
+        {(phase === 'review' || phase === 'saving') && dupe && (
+          <div
+            style={{
+              marginBottom: 14,
+              padding: '12px 14px',
+              background: 'rgba(232,209,138,0.10)',
+              border: '0.5px solid rgba(232,209,138,0.5)',
+              borderRadius: 12,
+              fontSize: 13,
+              color: theme.paper,
+              lineHeight: 1.45,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 9,
+                letterSpacing: 1.8,
+                color: '#e8d18a',
+                textTransform: 'uppercase',
+                fontWeight: 700,
+                marginBottom: 6,
+              }}
+            >
+              ⚠ Already in your network
+            </div>
+            <div style={{ fontFamily: theme.serif, fontStyle: 'italic', marginBottom: 8 }}>
+              <strong style={{ color: theme.paper, fontStyle: 'normal' }}>{dupe.name}</strong>
+              {dupe.current_title || dupe.current_hotel ? (
+                <span style={{ color: theme.muted }}>
+                  {' — '}
+                  {[dupe.current_title, dupe.current_hotel].filter(Boolean).join(', ')}
+                </span>
+              ) : null}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setDupe(null)}
+                style={{
+                  padding: '8px 12px',
+                  background: 'transparent',
+                  color: theme.muted,
+                  border: `0.5px solid ${theme.line}`,
+                  borderRadius: 999,
+                  fontSize: 10,
+                  letterSpacing: 1.4,
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  fontFamily: theme.sans,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => save(true)}
+                style={{
+                  padding: '8px 14px',
+                  background: theme.gold,
+                  color: theme.bg,
+                  border: 'none',
+                  borderRadius: 999,
+                  fontSize: 10.5,
+                  letterSpacing: 1.4,
+                  textTransform: 'uppercase',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: theme.sans,
+                }}
+              >
+                Save as a separate record
+              </button>
+            </div>
+          </div>
+        )}
+
         {(phase === 'review' || phase === 'saving') && (
           <ReviewForm
             theme={theme}
@@ -578,11 +663,12 @@ export function AddCandidate({
             saving={phase === 'saving'}
             onChange={upd}
             onChangeSignal={updSignal}
-            onSave={save}
+            onSave={() => save(false)}
             onRedo={() => {
               setCandidate(emptyCandidate());
               setTranscript('');
               setPhase('idle');
+              setDupe(null);
             }}
           />
         )}

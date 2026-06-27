@@ -53,7 +53,7 @@ const zeroToNull = (v: number | null | undefined): number | null => {
 };
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as IncomingBody;
+  const body = (await request.json()) as IncomingBody & { force?: boolean };
 
   if (!body.name || body.name.trim().length === 0) {
     return NextResponse.json(
@@ -63,6 +63,65 @@ export async function POST(request: Request) {
   }
 
   const sb = supabaseServer();
+
+  // Duplicate check — Belinda flagged that the app happily accepted the
+  // same candidate twice. We look up by either:
+  //   - exact LinkedIn URL (light-normalised)
+  //   - exact case-insensitive full name
+  // If a match exists and the client didn't pass force=true, return 409
+  // with the existing row so the UI can offer "Open existing / Save anyway".
+  if (!body.force) {
+    const linkedinUrlNorm = (body.linkedin_url ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/\?.*$/, '')
+      .replace(/\/$/, '')
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '');
+
+    const trimmedName = body.name.trim();
+
+    // Single query covering both cases — Postgres can OR-index across the
+    // two predicates faster than two round trips.
+    let dupeQ = sb
+      .from('candidates')
+      .select('id, name, current_title, current_hotel, linkedin_url')
+      .limit(5);
+    if (linkedinUrlNorm) {
+      dupeQ = dupeQ.or(
+        `linkedin_url.ilike.%${linkedinUrlNorm}%,name.ilike.${trimmedName}`,
+      );
+    } else {
+      dupeQ = dupeQ.ilike('name', trimmedName);
+    }
+    const { data: possibleDupes } = await dupeQ;
+    const dupe = (possibleDupes ?? []).find(
+      (d) =>
+        (linkedinUrlNorm &&
+          (d.linkedin_url ?? '')
+            .toLowerCase()
+            .replace(/\?.*$/, '')
+            .replace(/\/$/, '')
+            .replace(/^https?:\/\//, '')
+            .replace(/^www\./, '')
+            .endsWith(linkedinUrlNorm)) ||
+        d.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+    );
+    if (dupe) {
+      return NextResponse.json(
+        {
+          error: 'duplicate_candidate',
+          existing: {
+            id: dupe.id,
+            name: dupe.name,
+            current_title: dupe.current_title,
+            current_hotel: dupe.current_hotel,
+          },
+        },
+        { status: 409 },
+      );
+    }
+  }
 
   // Insert the candidate row first; we need the generated UUID for the
   // signals + tags joins below.

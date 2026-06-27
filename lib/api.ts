@@ -210,14 +210,35 @@ export async function extractCandidateFromCV(
   return { ...data.candidate, linkedin_url: data.candidate.linkedin_url ?? '' };
 }
 
+/**
+ * Thrown when /api/candidates POST returns 409 because a candidate with
+ * the same name or LinkedIn URL already exists. Caller can either prompt
+ * the user to open the existing one, or retry with `force: true`.
+ */
+export class CandidateDuplicateError extends Error {
+  existing: { id: string; name: string; current_title: string | null; current_hotel: string | null };
+  constructor(existing: CandidateDuplicateError['existing']) {
+    super(`candidate exists: ${existing.name}`);
+    this.name = 'CandidateDuplicateError';
+    this.existing = existing;
+  }
+}
+
 export async function saveCandidate(
   candidate: ExtractedCandidate,
+  opts: { force?: boolean } = {},
 ): Promise<{ id: string; name: string }> {
   const r = await fetch('/api/candidates', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(candidate),
+    body: JSON.stringify({ ...candidate, force: opts.force ?? false }),
   });
+  if (r.status === 409) {
+    const data = (await r.json().catch(() => ({}))) as {
+      existing?: CandidateDuplicateError['existing'];
+    };
+    if (data.existing) throw new CandidateDuplicateError(data.existing);
+  }
   if (!r.ok) {
     const detail = await r.text().catch(() => '');
     throw new Error(`save-candidate ${r.status}: ${detail.slice(0, 200)}`);

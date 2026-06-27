@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { THEMES, VOICE_LEVELS, DENSITIES } from '@/lib/theme';
 import {
   JOBS,
@@ -24,6 +25,7 @@ import { DetailScreen } from '@/screens/DetailScreen';
 import { MatchScreen } from '@/screens/MatchScreen';
 import { BelindaChat } from '@/screens/BelindaChat';
 import { AddCandidate } from '@/screens/AddCandidate';
+import { CandidatesScreen } from '@/screens/CandidatesScreen';
 import { TasksScreen } from '@/screens/TasksScreen';
 import { ClientsScreen } from '@/screens/ClientsScreen';
 import { ClientDetailScreen } from '@/screens/ClientDetailScreen';
@@ -44,6 +46,7 @@ type Route =
   | { name: 'capture' }
   | { name: 'opps' }
   | { name: 'swipe' }
+  | { name: 'candidates' }
   | { name: 'add-candidate' }
   | { name: 'tasks' }
   | { name: 'clients' }
@@ -56,9 +59,10 @@ type Route =
 
 const NAV_ITEMS = [
   { id: 'home', label: 'Home' },
+  { id: 'candidates', label: 'Candidates' },
+  { id: 'clients', label: 'Clients' },
   { id: 'capture', label: 'Capture' },
   { id: 'tasks', label: 'Tasks' },
-  { id: 'clients', label: 'Clients' },
   { id: 'opps', label: 'Opps' },
 ] as const;
 
@@ -96,6 +100,11 @@ export default function App({
   const clients = initialClients;
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [tweaksOpen, setTweaksOpen] = useState(false);
+  // Tweaks panel is a designer/dev tool — Belinda doesn't need it and it
+  // adds nav clutter on small screens. Stay invisible unless ?tweaks=1
+  // is appended to the URL (Nitin / Ritta use it during iteration).
+  const searchParams = useSearchParams();
+  const tweaksAvailable = searchParams?.get('tweaks') === '1';
   const [route, setRoute] = useState<Route>({ name: 'home' });
   const [lastCandidate, setLastCandidate] = useState<Candidate>(candidates[0]);
   // Voice flow has two async phases — transcription and parse-query.
@@ -188,7 +197,17 @@ export default function App({
 
   const screen = (() => {
     switch (route.name) {
-      case 'home':
+      case 'home': {
+        // Real counts replacing the old hardcoded "3 / 2 / 7" placeholders
+        // that confused Belinda in the demo (Home claimed 3 active briefs
+        // but every client said "0 open briefs"). Derive from the data we
+        // already fetched at the page boundary.
+        const activeBriefsCount = clients.reduce(
+          (sum, c) => sum + c.openBriefs.filter((b) => b.status !== 'placed' && b.status !== 'closed').length,
+          0,
+        );
+        const openOppsCount = opportunities.length;
+        const openTodosCount = todos.filter((t) => !t.completed).length;
         return (
           <HomeScreen
             theme={theme}
@@ -196,9 +215,26 @@ export default function App({
             onCapture={() => setRoute({ name: 'capture' })}
             onOpps={() => setRoute({ name: 'opps' })}
             onSwipe={() => setRoute({ name: 'swipe' })}
+            onCandidates={() => setRoute({ name: 'candidates' })}
             onAddCandidate={() => setRoute({ name: 'add-candidate' })}
             onWatchlist={() => setRoute({ name: 'watchlist' })}
             watchedCount={candidates.filter((c) => c.isWatched).length}
+            activeBriefsCount={activeBriefsCount}
+            openOppsCount={openOppsCount}
+            openTodosCount={openTodosCount}
+            recentQueries={[]}
+          />
+        );
+      }
+      case 'candidates':
+        return (
+          <CandidatesScreen
+            theme={theme}
+            candidates={candidates}
+            changes={changes}
+            onClose={goHome}
+            onOpenCandidate={openDetail}
+            onAddCandidate={() => setRoute({ name: 'add-candidate' })}
           />
         );
       case 'voice':
@@ -403,28 +439,30 @@ export default function App({
             </button>
           );
         })}
-        <button
-          data-app-chrome
-          onClick={() => setTweaksOpen((o) => !o)}
-          style={{
-            padding: '8px 16px',
-            borderRadius: 999,
-            background: tweaksOpen ? theme.gold : 'transparent',
-            color: tweaksOpen ? theme.bg : theme.paper,
-            border: 'none',
-            cursor: 'pointer',
-            fontFamily: theme.sans,
-            fontSize: 11,
-            letterSpacing: 1.3,
-            textTransform: 'uppercase',
-            fontWeight: 500,
-          }}
-        >
-          Tweaks
-        </button>
+        {tweaksAvailable && (
+          <button
+            data-app-chrome
+            onClick={() => setTweaksOpen((o) => !o)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 999,
+              background: tweaksOpen ? theme.gold : 'transparent',
+              color: tweaksOpen ? theme.bg : theme.paper,
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: theme.sans,
+              fontSize: 11,
+              letterSpacing: 1.3,
+              textTransform: 'uppercase',
+              fontWeight: 500,
+            }}
+          >
+            Tweaks
+          </button>
+        )}
       </div>
 
-      {tweaksOpen && (
+      {tweaksAvailable && tweaksOpen && (
         <TweaksPanel
           theme={theme}
           tweaks={tweaks}

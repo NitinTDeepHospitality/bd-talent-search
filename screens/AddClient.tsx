@@ -271,6 +271,68 @@ export function AddClient({
             >
               Tap to record
             </div>
+
+            {/* "Or type it in" — alternate path for when she has the
+                facts already and doesn't want to dictate. Drops straight
+                into the review form with empty fields, then saves through
+                the same /api/clients endpoint. */}
+            <div
+              style={{
+                margin: '28px auto 0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                maxWidth: 240,
+              }}
+            >
+              <div style={{ flex: 1, height: 0.5, background: theme.lineDark }} />
+              <div
+                style={{
+                  fontSize: 9,
+                  letterSpacing: 2,
+                  color: theme.muted,
+                  textTransform: 'uppercase',
+                }}
+              >
+                or
+              </div>
+              <div style={{ flex: 1, height: 0.5, background: theme.lineDark }} />
+            </div>
+            <button
+              onClick={() => {
+                setTranscript('(typed manually — no transcript)');
+                setClient(emptyClient());
+                setPhase('review');
+              }}
+              style={{
+                marginTop: 16,
+                padding: '10px 18px',
+                background: 'transparent',
+                color: theme.goldLight,
+                border: `0.5px solid ${theme.gold}`,
+                borderRadius: 999,
+                fontFamily: theme.sans,
+                fontSize: 11,
+                letterSpacing: 1.6,
+                textTransform: 'uppercase',
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M4 4h16v16H4z M8 9h8 M8 13h8 M8 17h5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Type it in instead
+            </button>
           </div>
         )}
 
