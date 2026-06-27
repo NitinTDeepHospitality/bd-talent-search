@@ -942,37 +942,63 @@ function ReviewForm({
         placeholder="lifestyle, pre-opening, fluent French"
       />
 
-      <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+      {/* Sticky bottom action bar — stays at the bottom of the AddCandidate
+          scroll viewport so Belinda can hit Save from anywhere in the form
+          without scrolling all the way down through 20+ fields. The
+          negative horizontal margins bleed the bar to the edges of the
+          parent's padding so it looks like proper full-width chrome.
+          Designed for a 76-year-old: Save is full-width, large, gold,
+          generously tap-padded (46px+); Re-record is a smaller secondary
+          escape hatch. */}
+      <div
+        style={{
+          position: 'sticky',
+          bottom: 0,
+          marginTop: 36,
+          marginLeft: -24,
+          marginRight: -24,
+          padding: '14px 24px calc(14px + env(safe-area-inset-bottom))',
+          background: 'rgba(14,12,10,0.94)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderTop: `0.5px solid ${theme.gold}`,
+          display: 'flex',
+          gap: 10,
+          zIndex: 10,
+        }}
+      >
         <button
           onClick={onRedo}
           disabled={saving}
           style={{
-            padding: '11px 16px',
+            padding: '14px 18px',
             background: 'transparent',
             color: theme.muted,
             border: `0.5px solid ${theme.line}`,
             borderRadius: 999,
             fontFamily: theme.sans,
-            fontSize: 10,
-            letterSpacing: 1.8,
+            fontSize: 11,
+            letterSpacing: 1.5,
             textTransform: 'uppercase',
             cursor: saving ? 'wait' : 'pointer',
+            minHeight: 46,
           }}
         >
-          Re-record
+          Start over
         </button>
         <button
           onClick={onSave}
-          disabled={saving}
+          disabled={saving || !candidate.name?.trim()}
           style={{
             flex: 1,
-            padding: '11px 16px',
+            padding: '14px 16px',
             background: saving ? 'rgba(184,150,107,0.25)' : theme.gold,
             color: saving ? theme.muted : theme.bg,
             border: 'none',
             borderRadius: 999,
             fontFamily: theme.sans,
-            fontSize: 11,
+            fontSize: 14,
+            minHeight: 46,
             letterSpacing: 2,
             textTransform: 'uppercase',
             fontWeight: 600,
