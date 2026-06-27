@@ -2,13 +2,17 @@ import App from './App';
 import {
   fetchCandidates,
   fetchClients,
+  fetchLatestImport,
   fetchOpportunities,
   fetchTodos,
+  fetchUnackedChanges,
   type Todo,
 } from '@/lib/supabase/queries';
 import {
   CANDIDATES as CANDIDATE_FALLBACK,
+  type CandidateChange,
   type Client,
+  type LinkedInImport,
   type Opportunity,
 } from '@/lib/data';
 
@@ -19,15 +23,25 @@ export default async function Page() {
   let opportunities: Opportunity[] = [];
   let todos: Todo[] = [];
   let clients: Client[] = [];
+  let changes: CandidateChange[] = [];
+  let latestImport: LinkedInImport | null = null;
 
   // Parallel queries — none depend on each other.
-  const [candidatesResult, opportunitiesResult, todosResult, clientsResult] =
-    await Promise.allSettled([
-      fetchCandidates(),
-      fetchOpportunities(),
-      fetchTodos(),
-      fetchClients(),
-    ]);
+  const [
+    candidatesResult,
+    opportunitiesResult,
+    todosResult,
+    clientsResult,
+    changesResult,
+    latestImportResult,
+  ] = await Promise.allSettled([
+    fetchCandidates(),
+    fetchOpportunities(),
+    fetchTodos(),
+    fetchClients(),
+    fetchUnackedChanges(),
+    fetchLatestImport(),
+  ]);
 
   if (candidatesResult.status === 'fulfilled' && candidatesResult.value.length > 0) {
     candidates = candidatesResult.value;
@@ -53,12 +67,26 @@ export default async function Page() {
     console.error('[BD] clients fetch failed:', clientsResult.reason);
   }
 
+  if (changesResult.status === 'fulfilled') {
+    changes = changesResult.value;
+  } else {
+    console.error('[BD] changes fetch failed:', changesResult.reason);
+  }
+
+  if (latestImportResult.status === 'fulfilled') {
+    latestImport = latestImportResult.value;
+  } else {
+    console.error('[BD] latest import fetch failed:', latestImportResult.reason);
+  }
+
   return (
     <App
       initialCandidates={candidates}
       initialOpportunities={opportunities}
       initialTodos={todos}
       initialClients={clients}
+      initialChanges={changes}
+      initialLatestImport={latestImport}
     />
   );
 }

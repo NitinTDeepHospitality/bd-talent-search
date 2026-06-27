@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Theme, VoiceLevel } from '@/lib/theme';
-import { type Candidate, RESOURCES } from '@/lib/data';
+import { type Candidate, type CandidateChange, RESOURCES } from '@/lib/data';
 import { Divider, SerifStat, TierMark } from '@/components/Shared';
 import { FollowUpDialog } from '@/components/FollowUpDialog';
 import { OUTLOOK_ENABLED } from '@/lib/flags';
-import { setCandidateWatched } from '@/lib/api';
+import { setCandidateWatched, setChangeAcknowledged } from '@/lib/api';
 
 const SIGNALS: Array<{ k: keyof Candidate['signals']; label: string }> = [
   { k: 'wordOnStreet', label: 'Word on the street' },
@@ -147,6 +147,7 @@ export function DetailScreen({
   theme,
   voice,
   candidate,
+  changes = [],
   onClose,
   onShortlist,
   onAsk,
@@ -154,6 +155,8 @@ export function DetailScreen({
   theme: Theme;
   voice: VoiceLevel;
   candidate: Candidate;
+  /** Unacknowledged LinkedIn changes for THIS candidate. */
+  changes?: CandidateChange[];
   onClose: () => void;
   onShortlist: () => void;
   onAsk: () => void;
@@ -182,6 +185,42 @@ export function DetailScreen({
     } finally {
       setWatchPending(false);
     }
+  };
+
+  // Local state for the change-banner — IDs we've optimistically acked,
+  // so the row vanishes on tap without waiting for the server.
+  const [ackedIds, setAckedIds] = useState<Set<string>>(new Set());
+  const visibleChanges = changes.filter((ch) => !ackedIds.has(ch.id));
+  const acknowledge = async (changeId: string) => {
+    setAckedIds((prev) => {
+      const next = new Set(prev);
+      next.add(changeId);
+      return next;
+    });
+    try {
+      await setChangeAcknowledged(changeId, true);
+      router.refresh();
+    } catch (e) {
+      console.error('[BD] acknowledge failed:', e);
+      setAckedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(changeId);
+        return next;
+      });
+    }
+  };
+  const CHANGE_TYPE_LABEL: Record<CandidateChange['type'], string> = {
+    role_change: 'Role changed',
+    company_change: 'Company changed',
+  };
+  const relativeChangeAge = (iso: string): string => {
+    const ms = Date.now() - new Date(iso).getTime();
+    const d = Math.floor(ms / 86400000);
+    if (d <= 0) return 'today';
+    if (d === 1) return 'yesterday';
+    if (d < 30) return `${d} days ago`;
+    const mo = Math.round(d / 30);
+    return mo === 1 ? '1 month ago' : `${mo} months ago`;
   };
 
   return (
@@ -327,6 +366,102 @@ export function DetailScreen({
           gap: 28,
         }}
       >
+        {visibleChanges.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            {visibleChanges.map((ch) => (
+              <div
+                key={ch.id}
+                style={{
+                  padding: '12px 14px',
+                  background: 'rgba(226,91,91,0.10)',
+                  border: '0.5px solid rgba(226,91,91,0.5)',
+                  borderRadius: 12,
+                  display: 'flex',
+                  gap: 12,
+                  alignItems: 'flex-start',
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      gap: 8,
+                      flexWrap: 'wrap',
+                      marginBottom: 6,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 9,
+                        letterSpacing: 1.8,
+                        textTransform: 'uppercase',
+                        color: '#f0a3a3',
+                        fontWeight: 700,
+                      }}
+                    >
+                      ● Moved · {CHANGE_TYPE_LABEL[ch.type]}
+                    </div>
+                    <div style={{ fontSize: 10, color: theme.muted }}>
+                      detected {relativeChangeAge(ch.detectedAt)}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: theme.serif,
+                      fontSize: 14,
+                      fontStyle: 'italic',
+                      color: theme.paper,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {ch.fromValue ? (
+                      <>
+                        <span style={{ opacity: 0.65 }}>{ch.fromValue}</span>
+                        <span style={{ margin: '0 8px', color: theme.gold, opacity: 0.7 }}>→</span>
+                        <span style={{ color: theme.goldLight }}>
+                          {ch.toValue ?? '—'}
+                        </span>
+                      </>
+                    ) : (
+                      <span style={{ color: theme.goldLight }}>
+                        {ch.toValue ?? '—'}{' '}
+                        <span style={{ color: theme.muted, fontStyle: 'normal', fontSize: 11 }}>
+                          (new)
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => acknowledge(ch.id)}
+                  style={{
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    color: theme.muted,
+                    border: `0.5px solid ${theme.line}`,
+                    borderRadius: 999,
+                    fontSize: 9.5,
+                    letterSpacing: 1.4,
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    fontFamily: theme.sans,
+                  }}
+                >
+                  Seen
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div
           style={{
             fontFamily: theme.serif,

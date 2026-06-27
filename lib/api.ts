@@ -245,6 +245,49 @@ export async function setCandidateWatched(
   }
 }
 
+// ─── Phase 5b: LinkedIn change detection ────────────────────────────────
+
+export type ImportResult = {
+  importId: string | null;
+  totalRows: number;
+  matchedRows: number;
+  changesDetected: number;
+};
+
+/** Upload Belinda's LinkedIn Connections.csv and run a diff pass. */
+export async function importLinkedinExport(file: File): Promise<ImportResult> {
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await fetch('/api/import-linkedin-export', {
+    method: 'POST',
+    body: fd,
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`import ${r.status}: ${detail.slice(0, 200)}`);
+  }
+  return (await r.json()) as ImportResult;
+}
+
+/** Mark a candidate-change row as seen (or unmark it). */
+export async function setChangeAcknowledged(
+  changeId: string,
+  acknowledged: boolean,
+): Promise<void> {
+  const r = await fetch(
+    `/api/candidate-changes/${encodeURIComponent(changeId)}`,
+    {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ acknowledged }),
+    },
+  );
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`acknowledge ${r.status}: ${detail.slice(0, 200)}`);
+  }
+}
+
 export type ExtractedClient = {
   name: string | null;
   type:

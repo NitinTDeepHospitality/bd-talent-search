@@ -2,7 +2,14 @@
 
 import { useState } from 'react';
 import { THEMES, VOICE_LEVELS, DENSITIES } from '@/lib/theme';
-import { JOBS, type Candidate, type Client, type Opportunity } from '@/lib/data';
+import {
+  JOBS,
+  type Candidate,
+  type CandidateChange,
+  type Client,
+  type LinkedInImport,
+  type Opportunity,
+} from '@/lib/data';
 import { IOSDevice } from '@/components/IOSDevice';
 import { Wordmark } from '@/components/Shared';
 import { TweaksPanel, type Tweaks } from '@/components/TweaksPanel';
@@ -71,15 +78,21 @@ export default function App({
   initialOpportunities = [],
   initialTodos = [],
   initialClients = [],
+  initialChanges = [],
+  initialLatestImport = null,
 }: {
   initialCandidates: Candidate[];
   initialOpportunities?: Opportunity[];
   initialTodos?: SavedTodo[];
   initialClients?: Client[];
+  initialChanges?: CandidateChange[];
+  initialLatestImport?: LinkedInImport | null;
 }) {
   const candidates = initialCandidates;
   const opportunities = initialOpportunities;
   const todos = initialTodos;
+  const changes = initialChanges;
+  const latestImport = initialLatestImport;
   const clients = initialClients;
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [tweaksOpen, setTweaksOpen] = useState(false);
@@ -236,6 +249,8 @@ export default function App({
           <WatchlistScreen
             theme={theme}
             candidates={candidates}
+            changes={changes}
+            latestImport={latestImport}
             onClose={goHome}
             onOpenCandidate={openDetail}
           />
@@ -256,6 +271,7 @@ export default function App({
             theme={theme}
             voice={voice}
             candidate={route.candidate}
+            changes={changes.filter((ch) => ch.candidateId === route.candidate.dbId)}
             onClose={goHome}
             onShortlist={() => openMatch(route.candidate)}
             onAsk={() => openChat(route.candidate)}

@@ -3,7 +3,14 @@
 
 import 'server-only';
 import { supabaseServer } from './server';
-import type { Candidate, Client, ClientBrief, Opportunity } from '@/lib/data';
+import type {
+  Candidate,
+  CandidateChange,
+  Client,
+  ClientBrief,
+  LinkedInImport,
+  Opportunity,
+} from '@/lib/data';
 
 export type Todo = {
   id: string;
@@ -279,4 +286,72 @@ export async function fetchCandidates(): Promise<Candidate[]> {
 
   if (error) throw error;
   return (data as unknown as DbCandidate[]).map(rowToCandidate);
+}
+
+// ─── Phase 5b: LinkedIn change detection ────────────────────────────────
+
+type DbCandidateChange = {
+  id: string;
+  candidate_id: string;
+  type: 'role_change' | 'company_change';
+  from_value: string | null;
+  to_value: string | null;
+  detected_at: string;
+  acknowledged_at: string | null;
+};
+
+/**
+ * All unacknowledged candidate changes (the things that drive MOVED
+ * badges). Capped at 200 — if she has more than that she's behind on
+ * reviewing them.
+ */
+export async function fetchUnackedChanges(): Promise<CandidateChange[]> {
+  const sb = supabaseServer();
+  const { data, error } = await sb
+    .from('candidate_changes')
+    .select('id, candidate_id, type, from_value, to_value, detected_at, acknowledged_at')
+    .is('acknowledged_at', null)
+    .order('detected_at', { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return (data as unknown as DbCandidateChange[]).map((r) => ({
+    id: r.id,
+    candidateId: r.candidate_id,
+    type: r.type,
+    fromValue: r.from_value,
+    toValue: r.to_value,
+    detectedAt: r.detected_at,
+    acknowledgedAt: r.acknowledged_at,
+  }));
+}
+
+type DbLinkedInImport = {
+  id: string;
+  imported_at: string;
+  filename: string | null;
+  total_rows: number | null;
+  matched_rows: number | null;
+  changes_detected: number | null;
+};
+
+/** Most recent import row — drives the "Last refresh X ago" line. */
+export async function fetchLatestImport(): Promise<LinkedInImport | null> {
+  const sb = supabaseServer();
+  const { data, error } = await sb
+    .from('linkedin_imports')
+    .select('id, imported_at, filename, total_rows, matched_rows, changes_detected')
+    .order('imported_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const r = data as DbLinkedInImport;
+  return {
+    id: r.id,
+    importedAt: r.imported_at,
+    filename: r.filename,
+    totalRows: r.total_rows ?? 0,
+    matchedRows: r.matched_rows ?? 0,
+    changesDetected: r.changes_detected ?? 0,
+  };
 }

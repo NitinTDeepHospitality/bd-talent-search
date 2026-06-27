@@ -252,6 +252,27 @@ export const BELINDA_INTRO = {
 
 export type ChatMessage = { role: 'belinda' | 'me'; text: string };
 
+// Phase 5b — LinkedIn change detection. Each detected delta becomes one
+// CandidateChange row. acknowledgedAt = null means the MOVED badge shows.
+export type CandidateChange = {
+  id: string;
+  candidateId: string;
+  type: 'role_change' | 'company_change';
+  fromValue: string | null;
+  toValue: string | null;
+  detectedAt: string;
+  acknowledgedAt: string | null;
+};
+
+export type LinkedInImport = {
+  id: string;
+  importedAt: string;
+  filename: string | null;
+  totalRows: number;
+  matchedRows: number;
+  changesDetected: number;
+};
+
 export const BELINDA_CHAT_SEED: ChatMessage[] = [
   {
     role: 'belinda',
