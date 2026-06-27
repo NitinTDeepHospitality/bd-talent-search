@@ -3,6 +3,7 @@
 
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isAllowedEmail } from '@/lib/flags';
 
 export async function updateSession(request: NextRequest) {
   // Prototype escape hatch — when set, every route is accessible without
@@ -62,6 +63,27 @@ export async function updateSession(request: NextRequest) {
     }
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
+  // Email allow-list. Azure is multitenant now, so any work Microsoft
+  // user worldwide could theoretically sign in. We let only the known
+  // emails through; everyone else gets signed out and bounced back to
+  // /login with an explainer. Public paths (login, auth callback,
+  // cron) skip this — the check only matters for app surfaces.
+  if (user && !isPublic && !isAllowedEmail(user.email)) {
+    if (path.startsWith('/api/')) {
+      return new NextResponse(
+        JSON.stringify({ error: 'not_authorized' }),
+        { status: 403, headers: { 'content-type': 'application/json' } },
+      );
+    }
+    // Clear their session so they don't sit logged-in-but-rejected and
+    // can try a different account.
+    await supabase.auth.signOut();
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('error', 'not_authorized');
     return NextResponse.redirect(url);
   }
 

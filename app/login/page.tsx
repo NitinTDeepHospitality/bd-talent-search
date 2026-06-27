@@ -1,14 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase/browser';
 import { THEMES } from '@/lib/theme';
 
 const T = THEMES.editorial;
 
+const ERROR_COPY: Record<string, string> = {
+  not_authorized:
+    'That Microsoft account isn’t on the allow-list. Try a different account, or ask Nitin to add you.',
+  missing_code: 'Sign-in didn’t complete. Try again.',
+};
+
+// Wrap the inner component in Suspense — useSearchParams() requires it
+// when the page is prerendered. The fallback is null because the
+// suspense resolves on the first client tick (no perceptible flash).
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginInner />
+    </Suspense>
+  );
+}
+
+function LoginInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pick up ?error=... params set by the middleware/callback so the
+  // user understands why they're back here (e.g. allow-list rejection).
+  const search = useSearchParams();
+  useEffect(() => {
+    const errParam = search?.get('error');
+    if (errParam) {
+      setError(ERROR_COPY[errParam] ?? errParam);
+    }
+  }, [search]);
 
   async function signIn() {
     setLoading(true);
