@@ -7,7 +7,11 @@ import { type Candidate, type CandidateChange, RESOURCES } from '@/lib/data';
 import { Divider, SerifStat, TierMark } from '@/components/Shared';
 import { FollowUpDialog } from '@/components/FollowUpDialog';
 import { OUTLOOK_ENABLED } from '@/lib/flags';
-import { setCandidateWatched, setChangeAcknowledged } from '@/lib/api';
+import {
+  deleteCandidate,
+  setCandidateWatched,
+  setChangeAcknowledged,
+} from '@/lib/api';
 
 const SIGNALS: Array<{ k: keyof Candidate['signals']; label: string }> = [
   { k: 'wordOnStreet', label: 'Word on the street' },
@@ -190,6 +194,29 @@ export function DetailScreen({
   // Local state for the change-banner — IDs we've optimistically acked,
   // so the row vanishes on tap without waiting for the server.
   const [ackedIds, setAckedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+
+  // Hard-delete this candidate. Confirms with the user, then leans on the
+  // schema's cascading FKs to clean up signals/tags/etc. Closes the
+  // screen and refreshes server data so the row vanishes from any list
+  // the user navigates back to.
+  const onDeleteCandidate = async () => {
+    if (!c.dbId || deleting) return;
+    const ok = window.confirm(
+      `Delete ${c.name} from your network?\n\nThis removes their signals, tags, career history, and any shortlist references. It cannot be undone.`,
+    );
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await deleteCandidate(c.dbId);
+      router.refresh();
+      onClose();
+    } catch (e) {
+      console.error('[BD] delete-candidate failed:', e);
+      window.alert('Delete failed. Try again.');
+      setDeleting(false);
+    }
+  };
   const visibleChanges = changes.filter((ch) => !ackedIds.has(ch.id));
   const acknowledge = async (changeId: string) => {
     setAckedIds((prev) => {
@@ -718,6 +745,32 @@ export function DetailScreen({
         >
           Shortlist for the Carlyle
         </button>
+
+        {/* Destructive action — muted-red text button, not a big block,
+            so it doesn't compete with the primary CTAs. Only rendered
+            when we have a real DB row to delete. */}
+        {c.dbId && (
+          <button
+            onClick={onDeleteCandidate}
+            disabled={deleting}
+            style={{
+              marginTop: 4,
+              background: 'transparent',
+              color: deleting ? theme.muted : '#e25b5b',
+              border: 'none',
+              padding: '10px 16px',
+              fontFamily: theme.sans,
+              fontSize: 11,
+              letterSpacing: 1.6,
+              textTransform: 'uppercase',
+              fontWeight: 500,
+              cursor: deleting ? 'wait' : 'pointer',
+              opacity: deleting ? 0.6 : 0.85,
+            }}
+          >
+            {deleting ? 'Deleting…' : 'Delete this candidate'}
+          </button>
+        )}
       </div>
       <FollowUpDialog
         theme={theme}

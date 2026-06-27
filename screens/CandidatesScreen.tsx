@@ -1,10 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Theme } from '@/lib/theme';
 import type { Candidate, CandidateChange } from '@/lib/data';
 import { PreviewBadge } from '@/components/PreviewBadge';
 import { TierMark } from '@/components/Shared';
+import { bulkDeleteCandidates } from '@/lib/api';
 
 function relativeContact(iso: string | null | undefined): {
   label: string;
@@ -49,8 +51,56 @@ export function CandidatesScreen({
   onOpenCandidate: (c: Candidate) => void;
   onAddCandidate: () => void;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('recent');
+
+  // Multi-select state. Off by default; tapping "Select" turns it on
+  // and changes the row tap behaviour from "open detail" to "toggle".
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+
+  const exitSelection = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+  const toggleSelected = (dbId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(dbId)) next.delete(dbId);
+      else next.add(dbId);
+      return next;
+    });
+  };
+
+  const onBulkDelete = async () => {
+    if (selectedIds.size === 0 || deleting) return;
+    const n = selectedIds.size;
+    const ok = window.confirm(
+      `Delete ${n} candidate${n === 1 ? '' : 's'} from your network?\n\nThis removes their signals, tags, career history, and any shortlist references. It cannot be undone.`,
+    );
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const result = await bulkDeleteCandidates(ids);
+      exitSelection();
+      router.refresh();
+      // Quiet success — server-rendered list will be empty of these.
+      // Only alert when something unexpected happened (count mismatch).
+      if (result.deleted < ids.length) {
+        window.alert(
+          `Deleted ${result.deleted} of ${ids.length}. The rest were already gone.`,
+        );
+      }
+    } catch (e) {
+      console.error('[BD] bulk-delete failed:', e);
+      window.alert('Delete failed. Try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Map dbId → unacked change count so each row can render a MOVED pill
   // without re-filtering changes per render.
@@ -210,10 +260,11 @@ export function CandidatesScreen({
         />
       </div>
 
-      {/* Sort pills */}
+      {/* Sort pills + Select toggle */}
       <div
         style={{
           display: 'flex',
+          alignItems: 'center',
           gap: 6,
           padding: '0 20px 12px',
           fontFamily: theme.sans,
@@ -251,6 +302,23 @@ export function CandidatesScreen({
             {filtered.length} match{filtered.length === 1 ? '' : 'es'}
           </div>
         )}
+        <button
+          onClick={() => (selectionMode ? exitSelection() : setSelectionMode(true))}
+          style={{
+            padding: '5px 11px',
+            borderRadius: 999,
+            background: selectionMode ? theme.gold : 'transparent',
+            color: selectionMode ? theme.bg : theme.paper,
+            border: `0.5px solid ${selectionMode ? theme.gold : theme.line}`,
+            fontSize: 10,
+            letterSpacing: 1.4,
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            fontWeight: selectionMode ? 600 : 400,
+          }}
+        >
+          {selectionMode ? 'Cancel' : 'Select'}
+        </button>
       </div>
 
       {/* List */}
@@ -285,26 +353,69 @@ export function CandidatesScreen({
           {filtered.map((c) => {
             const contact = relativeContact(c.lastContactAt);
             const moved = c.dbId ? (movedByDbId.get(c.dbId) ?? 0) > 0 : false;
+            const isSelected = c.dbId ? selectedIds.has(c.dbId) : false;
+            // In selection mode a candidate without a dbId (i.e. a mock
+            // fallback row) can't be deleted — disable the tap entirely
+            // so the user doesn't think they ticked something.
+            const selectable = selectionMode && Boolean(c.dbId);
             return (
               <button
                 key={c.id}
-                onClick={() => onOpenCandidate(c)}
+                onClick={() => {
+                  if (selectable) toggleSelected(c.dbId!);
+                  else if (!selectionMode) onOpenCandidate(c);
+                }}
                 style={{
                   display: 'flex',
                   gap: 12,
                   padding: 12,
-                  background: moved
-                    ? 'rgba(226,91,91,0.10)'
-                    : 'rgba(245,239,230,0.04)',
-                  border: moved
-                    ? '0.5px solid rgba(226,91,91,0.45)'
-                    : `0.5px solid ${theme.lineDark}`,
+                  background: isSelected
+                    ? 'rgba(184,150,107,0.18)'
+                    : moved
+                      ? 'rgba(226,91,91,0.10)'
+                      : 'rgba(245,239,230,0.04)',
+                  border: isSelected
+                    ? `0.5px solid ${theme.gold}`
+                    : moved
+                      ? '0.5px solid rgba(226,91,91,0.45)'
+                      : `0.5px solid ${theme.lineDark}`,
                   borderRadius: 12,
-                  cursor: 'pointer',
+                  cursor: selectionMode && !selectable ? 'not-allowed' : 'pointer',
                   textAlign: 'left',
                   alignItems: 'center',
+                  opacity: selectionMode && !selectable ? 0.5 : 1,
                 }}
               >
+                {selectionMode && (
+                  <div
+                    aria-hidden
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 4,
+                      border: `1.5px solid ${isSelected ? theme.gold : theme.line}`,
+                      background: isSelected ? theme.gold : 'transparent',
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: theme.bg,
+                      transition: 'background 0.15s, border-color 0.15s',
+                    }}
+                  >
+                    {isSelected && (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path
+                          d="M2 6.5l2.5 2.5L10 3"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                )}
                 <div
                   style={{
                     width: 48,
@@ -415,6 +526,91 @@ export function CandidatesScreen({
               </button>
             );
           })}
+          {/* Spacer so the last row clears the sticky action bar when in
+              selection mode — sized to bar height + safe-area. */}
+          {selectionMode && <div style={{ height: 92 }} />}
+        </div>
+      )}
+
+      {/* Sticky bulk-action bar — visible only in selection mode.
+          Anchored to the bottom of the AddCandidate-style scroll
+          container so it stays in view as Belinda scrolls. */}
+      {selectionMode && (
+        <div
+          style={{
+            position: 'sticky',
+            bottom: 0,
+            marginTop: 0,
+            padding: '12px 20px calc(12px + env(safe-area-inset-bottom))',
+            background: 'rgba(14,12,10,0.94)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            borderTop: `0.5px solid ${theme.gold}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            zIndex: 10,
+          }}
+        >
+          <div
+            style={{
+              flex: 1,
+              fontFamily: theme.sans,
+              fontSize: 12,
+              color: theme.paper,
+              letterSpacing: 0.3,
+            }}
+          >
+            <span style={{ fontWeight: 600 }}>{selectedIds.size}</span>{' '}
+            <span style={{ color: theme.muted }}>
+              selected{selectedIds.size === 0 ? ' — tap candidates to add' : ''}
+            </span>
+          </div>
+          <button
+            onClick={exitSelection}
+            style={{
+              padding: '11px 14px',
+              background: 'transparent',
+              color: theme.muted,
+              border: `0.5px solid ${theme.line}`,
+              borderRadius: 999,
+              fontSize: 10.5,
+              letterSpacing: 1.4,
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              fontFamily: theme.sans,
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onBulkDelete}
+            disabled={selectedIds.size === 0 || deleting}
+            style={{
+              padding: '11px 16px',
+              background:
+                selectedIds.size === 0 || deleting
+                  ? 'rgba(226,91,91,0.20)'
+                  : '#e25b5b',
+              color:
+                selectedIds.size === 0 || deleting ? theme.muted : '#fff',
+              border: 'none',
+              borderRadius: 999,
+              fontSize: 11,
+              letterSpacing: 1.5,
+              textTransform: 'uppercase',
+              fontWeight: 600,
+              cursor:
+                selectedIds.size === 0 ? 'not-allowed' : deleting ? 'wait' : 'pointer',
+              fontFamily: theme.sans,
+            }}
+          >
+            {deleting
+              ? 'Deleting…'
+              : selectedIds.size === 0
+                ? 'Delete'
+                : `Delete ${selectedIds.size}`}
+          </button>
         </div>
       )}
     </div>

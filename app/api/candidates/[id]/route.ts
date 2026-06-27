@@ -52,3 +52,36 @@ export async function PATCH(
 
   return NextResponse.json({ id, patched: Object.keys(patch) });
 }
+
+/**
+ * Hard delete. Schema has ON DELETE CASCADE on candidate_experience,
+ * candidate_tags, candidate_signals, candidate_linkedin_snapshots,
+ * candidate_changes, interviews, and the candidate side of
+ * brief_shortlist — so everything tied to this candidate goes with
+ * them in one transaction. The UI is expected to confirm before calling.
+ */
+export async function DELETE(
+  _request: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const { id } = await ctx.params;
+  if (!id || id.length < 8) {
+    return NextResponse.json({ error: 'bad_id' }, { status: 400 });
+  }
+
+  const sb = supabaseServer();
+  const { error, count } = await sb
+    .from('candidates')
+    .delete({ count: 'exact' })
+    .eq('id', id);
+  if (error) {
+    return NextResponse.json(
+      { error: 'delete_failed', detail: error.message },
+      { status: 502 },
+    );
+  }
+  if (!count || count === 0) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
+  return new NextResponse(null, { status: 204 });
+}

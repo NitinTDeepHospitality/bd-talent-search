@@ -266,6 +266,41 @@ export async function setCandidateWatched(
   }
 }
 
+/**
+ * Hard-delete one candidate (and everything tied to them via FK cascade).
+ * Caller is expected to have confirmed with the user before calling.
+ */
+export async function deleteCandidate(dbId: string): Promise<void> {
+  const r = await fetch(`/api/candidates/${encodeURIComponent(dbId)}`, {
+    method: 'DELETE',
+  });
+  if (!r.ok && r.status !== 404) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`delete-candidate ${r.status}: ${detail.slice(0, 200)}`);
+  }
+}
+
+/**
+ * Bulk hard-delete. One round trip for any number of IDs, capped at 500
+ * server-side. Returns the number actually deleted (some IDs may already
+ * be gone).
+ */
+export async function bulkDeleteCandidates(
+  ids: string[],
+): Promise<{ deleted: number; requested: number }> {
+  if (ids.length === 0) return { deleted: 0, requested: 0 };
+  const r = await fetch('/api/candidates/bulk-delete', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`bulk-delete ${r.status}: ${detail.slice(0, 200)}`);
+  }
+  return (await r.json()) as { deleted: number; requested: number };
+}
+
 // ─── Phase 5b: LinkedIn change detection ────────────────────────────────
 
 export type ImportResult = {
