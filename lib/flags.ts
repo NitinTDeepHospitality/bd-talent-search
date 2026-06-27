@@ -2,10 +2,10 @@
 // constant, commit, deploy.
 
 /**
- * Phase 4 Outlook follow-up scheduling. When false, the "Schedule
- * follow-up" buttons on candidate + client detail screens are hidden
- * so Belinda can test the rest of the app without being forced into a
- * Microsoft sign-in. Flip to true once she's ready to sign in and use
- * the calendar feature.
+ * Phase 4 Outlook follow-up scheduling. When true, candidate + client
+ * detail screens show "Schedule follow-up" buttons that create real
+ * Outlook events via Microsoft Graph. Requires Belinda to sign in with
+ * Microsoft on her first visit so we have a token with
+ * Calendars.ReadWrite scope.
  */
-export const OUTLOOK_ENABLED = false;
+export const OUTLOOK_ENABLED = true;
